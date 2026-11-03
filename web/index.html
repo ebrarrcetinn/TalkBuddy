@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TalkBuddy</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&display=swap">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script>
+    // Görünüm ve yazı boyutu bu cihazda saklanır; sayfa çizilmeden uygulanır.
+    try {
+      const theme = localStorage.getItem("talkbuddy-theme");
+      if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      if (localStorage.getItem("talkbuddy-text") === "large") document.documentElement.dataset.text = "large";
+    } catch {}
+  </script>
+</head>
+<body>
+  <main class="app">
+    <p id="notice" class="notice" role="alert" hidden></p>
+    <p id="screen-loading" class="loading" data-screen>Yükleniyor…</p>
+
+    <!-- Geniş ekranda hesap ekranlarının solunda görünen kısa tanıtım; telefonda gizlenir -->
+    <aside class="auth-hero" aria-hidden="true">
+      <div class="auth-hero-faces">
+        <span class="character" data-persona="Female_Coach"></span>
+        <span class="character" data-persona="Male_Coach"></span>
+      </div>
+      <h2>İngilizceyi konuşarak öğren.</h2>
+      <ul>
+        <li>Partnerin seni dinler ve sesli cevap verir.</li>
+        <li>Takıldığında Türkçe sorarsın, nasıl söyleyeceğini gösterir.</li>
+        <li>Seviyene uygun, günde birkaç dakikalık konuşmalar.</li>
+      </ul>
+    </aside>
+
+    <!-- Hesap: uygulama giriş ekranıyla açılır; kayıt ve giriş arasında alttaki kutuyla geçilir -->
+    <section id="screen-login" class="auth" data-screen hidden>
+      <div class="auth-card">
+        <div class="auth-faces">
+          <span class="character" data-persona="Female_Coach"></span>
+          <span class="character" data-persona="Male_Coach"></span>
+        </div>
+        <h1 class="wordmark">TalkBuddy</h1>
+        <p class="auth-tagline">İngilizceyi konuşarak öğren.</p>
+        <form id="login-form" class="auth-form" novalidate>
+        <label class="field">
+          <input name="email" type="email" placeholder=" " autocomplete="email">
+          <span class="field-label">E-posta adresi</span>
+        </label>
+        <label class="field">
+          <input name="password" type="password" placeholder=" " autocomplete="current-password">
+          <span class="field-label">Şifre</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+          <label class="check"><input type="checkbox" name="remember" checked> Beni hatırla</label>
+          <p class="form-error" hidden></p>
+          <button type="submit" class="primary wide">Giriş yap</button>
+        </form>
+        <button type="button" class="link auth-forgot" data-go="forgot">Şifreni mi unuttun?</button>
+      </div>
+      <p class="auth-switch">Hesabın yok mu? <button type="button" class="link" data-go="register">Kaydol</button></p>
+    </section>
+
+    <section id="screen-register" class="auth" data-screen hidden>
+      <div class="auth-card">
+        <h1 class="wordmark">TalkBuddy</h1>
+        <p class="auth-tagline">Partnerinle İngilizce konuşmaya başlamak için kaydol.</p>
+        <form id="register-form" class="auth-form" novalidate>
+          <div class="row">
+        <label class="field">
+          <input name="first_name" type="text" placeholder=" " autocomplete="given-name">
+          <span class="field-label">İsim</span>
+        </label>
+        <label class="field">
+          <input name="last_name" type="text" placeholder=" " autocomplete="family-name">
+          <span class="field-label">Soyisim</span>
+        </label>
+          </div>
+        <label class="field">
+          <input name="phone" type="tel" placeholder=" " autocomplete="tel">
+          <span class="field-label">Telefon numarası</span>
+        </label>
+        <label class="field">
+          <input name="email" type="email" placeholder=" " autocomplete="email">
+          <span class="field-label">E-posta adresi</span>
+        </label>
+        <label class="field">
+          <input name="password" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Şifre</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+        <label class="field">
+          <input name="password_confirm" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Şifre tekrarı</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+          <p class="auth-note">Şifren en az 8 karakter olmalı. Ses kayıtların saklanmaz; konuşmaların yalnızca senin hesabında tutulur.</p>
+          <p class="form-error" hidden></p>
+          <button type="submit" class="primary wide">Kaydol</button>
+        </form>
+      </div>
+      <p class="auth-switch">Hesabın var mı? <button type="button" class="link" data-go="login">Giriş yap</button></p>
+    </section>
+
+    <section id="screen-forgot" class="auth" data-screen hidden>
+      <div class="auth-card">
+        <span class="auth-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1Zm2 0h6V7a3 3 0 0 0-6 0Z"/></svg></span>
+        <h1 class="auth-title">Giriş yapmakta sorun mu yaşıyorsun?</h1>
+        <p class="auth-tagline">E-posta adresini yaz, şifreni yenilemen için bir bağlantı gönderelim.</p>
+        <form id="forgot-form" class="auth-form" novalidate>
+        <label class="field">
+          <input name="email" type="email" placeholder=" " autocomplete="email">
+          <span class="field-label">E-posta adresi</span>
+        </label>
+          <p class="form-error" hidden></p>
+          <p class="form-success" hidden></p>
+          <button type="submit" class="primary wide">Bağlantı gönder</button>
+        </form>
+        <p class="auth-or"><span>ya da</span></p>
+        <button type="button" class="link" data-go="register">Yeni hesap oluştur</button>
+      </div>
+      <p class="auth-switch"><button type="button" class="link" data-go="login">Girişe dön</button></p>
+    </section>
+
+    <section id="screen-reset" class="auth" data-screen hidden>
+      <div class="auth-card">
+        <span class="auth-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1Zm2 0h6V7a3 3 0 0 0-6 0Z"/></svg></span>
+        <h1 class="auth-title">Yeni şifre belirle</h1>
+        <p class="auth-tagline">En az 8 karakterli yeni bir şifre seç.</p>
+        <form id="reset-form" class="auth-form" novalidate>
+        <label class="field">
+          <input name="password" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Yeni şifre</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+        <label class="field">
+          <input name="password_confirm" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Yeni şifre tekrarı</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+          <p class="form-error" hidden></p>
+          <p class="form-success" hidden></p>
+          <button type="submit" class="primary wide">Şifreyi güncelle</button>
+        </form>
+      </div>
+      <p class="auth-switch"><button type="button" class="link" data-go="login">Girişe dön</button></p>
+    </section>
+
+    <!-- İlk kurulum: her soru kendi ekranında; Devam et ile bir sonrakine kayar -->
+    <!-- 1. Yaş grubu -->
+    <section id="screen-age" class="setup-screen" data-screen hidden>
+      <header class="setup-bar">
+        <span class="back-space"></span>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="1"><span style="width: 20%"></span></span>
+        <span class="setup-count">1 / 5</span>
+      </header>
+      <div class="setup-body">
+        <h1>Kaç yaşındasın?</h1>
+        <p class="muted">Konuşma konularını sana göre seçmek için soruyoruz. Zorluğu yaş değil, İngilizce seviyen belirler.</p>
+        <div id="age-options" class="choice-list"></div>
+      </div>
+      <div class="setup-footer">
+        <button type="button" class="primary wide" id="age-next" disabled>Devam et</button>
+      </div>
+    </section>
+
+    <!-- 2. Seviye ya da isteğe bağlı kelime kontrolü -->
+    <section id="screen-level" class="setup-screen" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="level-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="2"><span style="width: 40%"></span></span>
+        <span class="setup-count">2 / 5</span>
+      </header>
+      <div class="setup-body">
+        <h1>İngilizce seviyen ne?</h1>
+        <p class="muted">Emin değilsen tahmin et; partnerin konuştukça seviyeni kendiliğinden ayarlar.</p>
+        <div id="level-options" class="choice-list"></div>
+      </div>
+      <div class="setup-footer">
+        <button type="button" class="primary wide" id="level-next" disabled>Devam et</button>
+      </div>
+    </section>
+
+    <section id="screen-assessment" class="card setup-card" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="assessment-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="2"><span style="width: 40%"></span></span>
+        <span class="setup-count">2 / 5</span>
+      </header>
+      <p class="step" id="assessment-step"></p>
+      <h2 id="assessment-title"></h2>
+      <p class="muted">Anlamını bildiğin kelimeleri işaretle. Bilmediklerini boş bırak.</p>
+      <p class="note" id="assessment-guardian" hidden>Bu değerlendirmeyi bir yetişkin eşliğinde yapın: kelimeleri çocuğa sesli okuyup bildiklerini birlikte işaretleyin.</p>
+      <p class="counter" id="assessment-counter"></p>
+      <div id="assessment-words" class="word-grid"></div>
+      <button type="button" id="assessment-done" class="primary wide">Bölümü tamamla</button>
+      <button type="button" class="link" id="assessment-skip">Seviyemi kendim seçmek istiyorum</button>
+    </section>
+
+    <section id="screen-result" class="card setup-card" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="result-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="2"><span style="width: 40%"></span></span>
+        <span class="setup-count">2 / 5</span>
+      </header>
+      <h2>Kelime bilgine göre tahmini çalışma seviyen</h2>
+      <p class="result-level" id="result-level"></p>
+      <ul id="result-scores" class="scores"></ul>
+      <p class="note" id="result-inconsistent" hidden>Sonuçların seviyeler arasında tutarsız dağıldı: Bazı alt seviyelerde eşik karşılanmadığı hâlde üst seviyelerde karşılandı. Öneri, aralıksız geçilen en yüksek seviyeye göre yapıldı.</p>
+      <p class="muted small">Bu sonuç, bildiğini işaretlediğin kelimelere dayanır. Genel İngilizce yeterliliğini tek başına kesin olarak ölçmez.</p>
+      <button type="button" id="result-accept" class="primary wide">Bu seviyeden çalışmaya başla</button>
+      <button type="button" class="link" id="result-other">Başka bir seviye seçmek istiyorum</button>
+    </section>
+
+    <!-- 3. İlgi alanları (26 konu, isteğe bağlı) -->
+    <section id="screen-interests" class="setup-screen" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="interests-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="3"><span style="width: 60%"></span></span>
+        <span class="setup-count">3 / 5</span>
+      </header>
+      <div class="setup-body">
+        <h1>Hangi konular ilgini çekiyor?</h1>
+        <p class="muted">Partnerin konuşmaları bu konulardan açar. En fazla 10 tane seç; sonra Profil'den değiştirebilirsin.</p>
+        <p class="choice-count" id="interests-count"></p>
+        <div id="interest-options" class="chips"></div>
+      </div>
+      <div class="setup-footer">
+        <button type="button" class="primary wide" id="interests-next" disabled>Devam et</button>
+      </div>
+    </section>
+
+    <!-- 4. Öğrenme amacı -->
+    <section id="screen-goal" class="setup-screen" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="goal-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="4"><span style="width: 80%"></span></span>
+        <span class="setup-count">4 / 5</span>
+      </header>
+      <div class="setup-body">
+        <h1>İngilizceyi en çok ne için istiyorsun?</h1>
+        <p class="muted">Partnerin örnekleri ve konuları buna göre seçer.</p>
+        <div id="goal-options" class="choice-list"></div>
+      </div>
+      <div class="setup-footer">
+        <button type="button" class="primary wide" id="goal-next" disabled>Devam et</button>
+      </div>
+    </section>
+
+    <!-- 5. Partner -->
+    <section id="screen-partner" class="setup-screen" data-screen hidden>
+      <header class="setup-bar">
+        <button type="button" class="back-button" id="partner-back" aria-label="Önceki adım"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <span class="setup-progress" role="progressbar" aria-label="Kurulum adımı" aria-valuemin="1" aria-valuemax="5" aria-valuenow="5"><span style="width: 100%"></span></span>
+        <span class="setup-count">5 / 5</span>
+      </header>
+      <div class="setup-body">
+        <h1>Konuşma partnerini seç</h1>
+        <p class="muted">Bu seçim senin cinsiyetini değil, partnerinin görünüşünü ve sesini belirler. Profil'den değiştirebilirsin.</p>
+        <div class="partners">
+          <button type="button" class="partner-card" data-partner="Female_Coach" aria-pressed="false">
+            <span class="character" data-persona="Female_Coach"></span>
+            <strong>Kadın</strong><span class="muted">Female</span>
+          </button>
+          <button type="button" class="partner-card" data-partner="Male_Coach" aria-pressed="false">
+            <span class="character" data-persona="Male_Coach"></span>
+            <strong>Erkek</strong><span class="muted">Male</span>
+          </button>
+        </div>
+      </div>
+      <div class="setup-footer">
+        <button type="button" class="primary wide" id="partner-next" disabled>Başlayalım</button>
+      </div>
+    </section>
+
+    <!-- İlk konuşma: kurulumun sonunda kısa ve kolay bir tanışma -->
+    <section id="screen-first" class="card narrow" data-screen hidden>
+      <span class="character large" id="first-character"></span>
+      <h1>İlk konuşman hazır</h1>
+      <p class="lead" id="first-title"></p>
+      <ul class="tips">
+        <li>Konuşmak için mikrofona izin ver, sonra rahatça konuş. Sustuğunda partnerin cevap verir.</li>
+        <li>Takılırsan <strong>Türkçe yardım</strong> düğmesine bas; partnerin Türkçe açıklar ve örnek bir cevap verir.</li>
+        <li>Hata yapmak sorun değil. Partnerin doğrusunu kısaca söyler ve devam eder.</li>
+      </ul>
+      <button type="button" class="primary wide" id="first-start">Konuşmaya başla</button>
+      <button type="button" class="link" data-go="home">Şimdilik ana sayfaya geç</button>
+    </section>
+
+    <!-- Ana ekran -->
+    <section id="screen-home" data-screen hidden>
+      <header class="topbar">
+        <strong class="brand-small">TalkBuddy</strong>
+        <button type="button" class="bell" id="home-bell" aria-label="Bildirimler">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.5-2.5h-5A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.8V3a1.5 1.5 0 0 0-3 0v1.2A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>
+          <span class="bell-count" id="bell-count" hidden></span>
+        </button>
+      </header>
+      <div class="home">
+        <div class="home-hero">
+          <span class="character large" id="home-character"></span>
+          <div>
+            <h1 id="home-greeting"></h1>
+            <p class="muted" id="home-meta"></p>
+          </div>
+        </div>
+
+        <button type="button" class="habit" id="home-habit" data-go="progress" hidden>
+          <span class="habit-goal">
+            <span class="habit-label" id="habit-goal-text"></span>
+            <span class="meter" aria-hidden="true"><span id="habit-goal-bar"></span></span>
+          </span>
+          <span class="habit-streak" id="habit-streak"></span>
+        </button>
+
+        <!-- Günün konuşması: ekranın tek ana işi -->
+        <article class="today" id="home-today">
+          <p class="today-step" id="today-step"></p>
+          <h2 id="today-title"></h2>
+          <p id="today-text"></p>
+          <p class="today-length" id="today-length"></p>
+          <button type="button" id="start-talking" class="primary call-button">Konuşmaya başla</button>
+        </article>
+
+        <details class="other" id="home-other">
+          <summary>Başka bir konu ya da süre seç</summary>
+          <h3 class="setup-title">Konu</h3>
+          <div id="home-topics" class="chips"></div>
+          <p class="muted small" id="home-topics-hint" hidden>İlgi alanlarını Profil'den seçersen konuların burada çıkar.</p>
+          <h3 class="setup-title">Süre</h3>
+          <div id="home-minutes" class="segmented"></div>
+          <button type="button" id="start-free" class="secondary">Bu seçimle konuş</button>
+        </details>
+
+        <article class="review" id="home-review" hidden>
+          <h3>Aylık konuşma değerlendirmesi</h3>
+          <p class="muted small">10–15 dakikalık isteğe bağlı bir konuşma: bir olay anlatırsın, günlük bir durumu canlandırırsın, fikrini söylersin. Sonunda güçlü yönlerini ve gelişim alanlarını görürsün. Resmî bir sınav değildir.</p>
+          <div class="actions">
+            <button type="button" class="primary" id="review-start">Şimdi başla</button>
+            <button type="button" class="secondary" id="review-snooze">Sonra hatırlat</button>
+          </div>
+        </article>
+
+        <!-- Veri biriktikçe görünen bölümler -->
+        <ul class="rows" id="home-rows">
+          <li id="row-continue" hidden>
+            <div class="row-plain">
+              <span class="row-title">Kaldığın yer</span>
+              <span class="row-text" id="home-continue"></span>
+            </div>
+          </li>
+          <li id="row-due" hidden>
+            <button type="button" class="row-link" data-go="words">
+              <span class="row-title">Tekrar zamanı gelen kelimeler</span>
+              <span class="row-text" id="home-due"></span>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- Sesli konuşma: bir telefon görüşmesi gibi -->
+    <section id="screen-talk" class="call" data-screen hidden>
+      <header class="call-bar">
+        <button type="button" class="end-call" id="talk-end">Bitir</button>
+        <p class="call-info"><span id="talk-topic"></span><span class="timer" id="talk-timer" hidden></span></p>
+        <details class="menu" id="talk-menu">
+          <summary aria-label="Diğer ayarlar">⋯</summary>
+          <div class="menu-panel">
+            <button type="button" class="menu-item" id="talk-replay">Son cümleyi tekrar dinle</button>
+            <label class="menu-item speed">Konuşma hızı <input type="range" id="talk-speed" min="0.6" max="1.3" step="0.05"></label>
+            <button type="button" class="menu-item" id="talk-transcript-toggle">Döküm</button>
+            <button type="button" class="menu-item" id="talk-language">Türkçe konuşacağım</button>
+          </div>
+        </details>
+      </header>
+
+      <div class="stage">
+        <button type="button" class="character huge" id="talk-character" aria-label="Partnerin sözünü kes"></button>
+        <p class="subtitle" id="talk-bubble" hidden></p>
+        <p class="heard" id="talk-heard"></p>
+        <div class="toast" id="talk-toast" hidden></div>
+      </div>
+
+      <div class="mic-area">
+        <div class="mic-row">
+          <span class="mic-side"></span>
+          <button type="button" class="voice-ring" id="talk-mute" aria-label="Mikrofonu kapat">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-2.1a7 7 0 0 0 6-6.9h-2Z"/></svg>
+          </button>
+          <button type="button" class="help-button" id="talk-help">Türkçe yardım</button>
+        </div>
+        <p class="status" id="talk-status" aria-live="polite"></p>
+      </div>
+
+      <form id="talk-text" class="text-fallback" hidden>
+        <input name="text" placeholder="Mesajını yaz…" maxlength="2000">
+        <button type="submit" class="primary">Gönder</button>
+      </form>
+      <ol id="talk-transcript" class="transcript" hidden></ol>
+    </section>
+
+    <section id="screen-summary" class="card narrow" data-screen hidden>
+      <h1 id="summary-title">Konuşma bitti</h1>
+      <p class="lead" id="summary-text"></p>
+      <dl class="facts" id="summary-facts"></dl>
+      <div id="summary-lists"></div>
+      <p class="next" id="summary-next" hidden></p>
+      <button type="button" class="primary wide" data-go="home">Ana sayfaya dön</button>
+    </section>
+
+    <!-- Kelimelerim ve profil -->
+    <section id="screen-words" data-screen hidden>
+      <header class="topbar">
+        <h1>Kelimelerim</h1>
+      </header>
+      <div id="words-filters" class="chips"></div>
+      <div id="words-list" class="word-list"></div>
+      <div class="empty" id="words-empty" hidden>
+        <p>Henüz kelimen yok. Partnerinle konuştukça öğrendiğin kelimeler burada birikir; dökümdeki bir kelimeye dokunarak da ekleyebilirsin.</p>
+        <button type="button" class="primary" data-go="home">Konuşmaya başla</button>
+      </div>
+    </section>
+
+    <!-- Gelişim: yalnızca gerçek kayıtlardan hesaplanan bilgiler -->
+    <section id="screen-progress" data-screen hidden>
+      <header class="topbar">
+        <h1>Gelişimim</h1>
+      </header>
+      <div class="empty welcome-empty" id="progress-empty" hidden>
+        <p class="empty-title">Gelişimin ilk konuşmanla başlar</p>
+        <p>Birkaç dakikalık bir konuşma yap; konuşma süren, serin, kelimelerin ve partnerinin düzeltmeleri burada birikmeye başlasın.</p>
+        <button type="button" class="primary" data-go="home">İlk konuşmamı yap</button>
+      </div>
+      <div id="progress-body" class="progress">
+        <section class="panel">
+          <h2>Bugün</h2>
+          <p class="big-number" id="progress-today"></p>
+          <span class="meter" aria-hidden="true"><span id="progress-goal-bar"></span></span>
+          <p class="muted small" id="progress-streak"></p>
+        </section>
+        <section class="panel">
+          <h2>Son 7 gün</h2>
+          <div class="week-chart" id="progress-week" role="img"></div>
+          <dl class="stats" id="progress-totals"></dl>
+        </section>
+        <section class="panel" id="progress-advice-panel" hidden>
+          <h2>Senin için öneriler</h2>
+          <ul class="advice" id="progress-advice"></ul>
+        </section>
+        <section class="panel">
+          <h2>Kelimeler</h2>
+          <dl class="stats" id="progress-words"></dl>
+          <button type="button" class="secondary" id="progress-review" hidden>Tekrar zamanı gelenlere bak</button>
+        </section>
+        <section class="panel" id="progress-plan-panel" hidden>
+          <h2>Seviye planın</h2>
+          <p class="muted small" id="progress-plan"></p>
+          <span class="meter" aria-hidden="true"><span id="progress-plan-bar"></span></span>
+        </section>
+        <section class="panel" id="progress-mistakes-panel" hidden>
+          <h2>Sık yapılan hatalar</h2>
+          <p class="muted small">Partnerinin konuşmalarda en sık düzelttiği yapılar.</p>
+          <ul class="plain counts" id="progress-mistakes"></ul>
+        </section>
+        <section class="panel" id="progress-monthly-panel" hidden>
+          <h2>Aylık konuşma değerlendirmeleri</h2>
+          <ul class="plain" id="progress-monthly"></ul>
+        </section>
+        <section class="panel">
+          <h2>Rozetler</h2>
+          <ul class="badges" id="progress-badges"></ul>
+        </section>
+      </div>
+    </section>
+
+    <!-- Bildirim merkezi -->
+    <section id="screen-notifications" data-screen hidden>
+      <header class="topbar">
+        <button type="button" class="link" data-go="home">Geri</button>
+        <h1>Bildirimler</h1>
+        <span></span>
+      </header>
+      <ul class="notices" id="notices"></ul>
+      <p class="empty" id="notices-empty" hidden>Şu an yeni bir bildirim yok.</p>
+      <p class="muted small">Hangi bildirimleri göreceğini Profil › Uygulama ayarları'ndan seçebilirsin.</p>
+    </section>
+
+    <!-- Profil: yalnızca hesap özeti ve menü; ayarlar alt ekranlarda -->
+    <section id="screen-profile" data-screen hidden>
+      <header class="topbar">
+        <h1>Profil</h1>
+      </header>
+      <div class="account">
+        <span class="avatar large" id="profile-avatar"></span>
+        <div>
+          <p class="account-name" id="profile-name"></p>
+          <p class="muted small" id="profile-email"></p>
+          <span class="level-tag" id="profile-level-tag"></span>
+        </div>
+      </div>
+      <nav class="menu-list" aria-label="Profil menüsü">
+        <button type="button" class="menu-row" data-go="personal">
+          <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6Z"/></svg></span>
+          <span class="menu-label">Kişisel bilgilerim</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6Z"/></svg>
+        </button>
+        <button type="button" class="menu-row" data-go="password">
+          <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1Zm2 0h6V7a3 3 0 0 0-6 0Z"/></svg></span>
+          <span class="menu-label">Şifremi değiştir</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6Z"/></svg>
+        </button>
+        <button type="button" class="menu-row" data-go="preferences">
+          <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 1 9l11 6 9-4.9V17h2V9Zm-7 9.2V16c0 2.2 3.1 4 7 4s7-1.8 7-4v-3.8L12 16Z"/></svg></span>
+          <span class="menu-label">Öğrenme tercihlerim</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6Z"/></svg>
+        </button>
+        <button type="button" class="menu-row" data-go="settings">
+          <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h10v2H3zm14 0h4v2h-4zm-3-2h2v6h-2zM3 16h4v2H3zm8 0h10v2H11zm-3-2h2v6H8z"/></svg></span>
+          <span class="menu-label">Uygulama ayarları</span><svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6Z"/></svg>
+        </button>
+        <button type="button" class="menu-row danger" id="logout">
+          <span class="menu-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 3h9a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-9v-2h8V5h-8Zm-1 5 1.4 1.4L8.8 11H15v2H8.8l1.6 1.6L9 16l-4-4Z"/></svg></span>
+          <span class="menu-label">Çıkış yap</span>
+        </button>
+      </nav>
+    </section>
+
+    <!-- Kişisel bilgilerim -->
+    <section id="screen-personal" data-screen hidden>
+      <header class="subbar">
+        <button type="button" class="back-button" data-go="profile" aria-label="Profile dön"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <h1>Kişisel bilgilerim</h1>
+      </header>
+      <div class="settings">
+        <section class="photo-edit">
+          <span class="avatar xlarge" id="personal-avatar"></span>
+          <div class="photo-actions">
+            <label class="link file-button">Fotoğrafı değiştir<input type="file" id="photo-input" accept="image/jpeg,image/png,image/webp"></label>
+            <button type="button" class="link muted-link" id="photo-remove" hidden>Kaldır</button>
+          </div>
+          <p class="form-error" id="photo-error" hidden></p>
+        </section>
+
+        <form id="name-form" class="form setting-group" novalidate>
+          <h2>Ad ve soyad</h2>
+          <div class="row">
+            <label class="field">
+              <input name="first_name" type="text" placeholder=" " autocomplete="given-name">
+              <span class="field-label">İsim</span>
+            </label>
+            <label class="field">
+              <input name="last_name" type="text" placeholder=" " autocomplete="family-name">
+              <span class="field-label">Soyisim</span>
+            </label>
+          </div>
+          <p class="form-error" hidden></p>
+          <p class="form-success" hidden></p>
+          <button type="submit" class="primary wide">Kaydet</button>
+        </form>
+
+        <section class="setting-group">
+          <h2>Yaş grubu</h2>
+          <p class="muted small">Partnerin konuşma konularını yaşına göre seçer; zorluk yalnızca seviyene bağlıdır.</p>
+          <div class="options inline" id="personal-age"></div>
+        </section>
+
+        <form id="email-form" class="form setting-group" novalidate>
+          <h2>E-posta adresi</h2>
+          <p class="current-value" id="personal-email"></p>
+          <p class="muted small">Yeni adrese bir onay bağlantısı gönderilir. Bağlantıyı açana kadar eski adresin geçerli kalır.</p>
+          <label class="field">
+            <input name="new_email" type="email" placeholder=" " autocomplete="email">
+            <span class="field-label">Yeni e-posta adresi</span>
+          </label>
+          <label class="field">
+            <input name="password" type="password" placeholder=" " autocomplete="current-password">
+            <span class="field-label">Şifren</span>
+            <button type="button" class="link toggle-password">Göster</button>
+          </label>
+          <p class="form-error" hidden></p>
+          <p class="form-success" hidden></p>
+          <button type="submit" class="primary wide">Onay bağlantısı gönder</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- Şifremi değiştir -->
+    <section id="screen-password" data-screen hidden>
+      <header class="subbar">
+        <button type="button" class="back-button" data-go="profile" aria-label="Profile dön"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <h1>Şifremi değiştir</h1>
+      </header>
+      <form id="password-form" class="form setting-group" novalidate>
+        <label class="field">
+          <input name="current_password" type="password" placeholder=" " autocomplete="current-password">
+          <span class="field-label">Mevcut şifre</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+        <label class="field">
+          <input name="password" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Yeni şifre</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+        <label class="field">
+          <input name="password_confirm" type="password" placeholder=" " autocomplete="new-password">
+          <span class="field-label">Yeni şifre tekrarı</span>
+          <button type="button" class="link toggle-password">Göster</button>
+        </label>
+        <p class="muted small">En az 8 karakter. Şifre değişince diğer cihazlardaki oturumların kapanır.</p>
+        <p class="form-error" hidden></p>
+        <p class="form-success" hidden></p>
+        <button type="submit" class="primary wide">Şifreyi değiştir</button>
+      </form>
+    </section>
+
+    <!-- Öğrenme tercihlerim -->
+    <section id="screen-preferences" data-screen hidden>
+      <header class="subbar">
+        <button type="button" class="back-button" data-go="profile" aria-label="Profile dön"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <h1>Öğrenme tercihlerim</h1>
+      </header>
+      <div class="settings">
+        <section class="setting-group">
+          <h2>İngilizce seviyem</h2>
+          <p class="muted small" id="prefs-level-note"></p>
+          <div class="options inline" id="prefs-level"></div>
+          <details class="explain">
+            <summary>Seviyem nasıl belirleniyor?</summary>
+            <p class="muted small" id="prefs-level-explain"></p>
+          </details>
+        </section>
+        <section class="setting-group">
+          <h2>Konuşma partnerim</h2>
+          <div class="segmented" id="prefs-partner"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Günlük hedefim</h2>
+          <div class="segmented" id="prefs-daily"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Öğrenme amacım</h2>
+          <div class="options inline" id="prefs-goal"></div>
+        </section>
+        <section class="setting-group">
+          <h2>İlgi alanlarım</h2>
+          <p class="muted small">En fazla 10 konu. Partnerin konuşma konularını buradan seçer.</p>
+          <div class="options inline" id="prefs-interests"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Partnerin sesi</h2>
+          <label class="range">Konuşma hızı
+            <span class="range-row"><span class="muted small">Yavaş</span><input type="range" id="prefs-rate" min="0.6" max="1.3" step="0.05"><span class="muted small">Hızlı</span></span>
+          </label>
+          <label>Ses<select id="prefs-voice"></select></label>
+          <p class="muted small">Sesler bu cihazda yüklü olanlardır; bu iki ayar yalnızca bu cihaz için saklanır.</p>
+          <button type="button" class="secondary" id="prefs-voice-test">Sesi dinle</button>
+        </section>
+        <p class="form-success toast-saved" id="prefs-saved" hidden>Kaydedildi.</p>
+      </div>
+    </section>
+
+    <!-- Uygulama ayarları -->
+    <section id="screen-settings" data-screen hidden>
+      <header class="subbar">
+        <button type="button" class="back-button" data-go="profile" aria-label="Profile dön"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4-4.6-4.6Z"/></svg></button>
+        <h1>Uygulama ayarları</h1>
+      </header>
+      <div class="settings">
+        <section class="setting-group">
+          <h2>Bildirimler</h2>
+          <p class="muted small">Uygulamayı açtığında zil simgesinde görünür.</p>
+          <div class="toggles" id="settings-notifications"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Görünüm</h2>
+          <div class="segmented" id="settings-theme"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Dil ve erişilebilirlik</h2>
+          <p class="muted small">Uygulama dili Türkçe. Konuşmalar İngilizce; takıldığında "Türkçe yardım" düğmesini kullanabilirsin.</p>
+          <p class="setting-label">Yazı boyutu</p>
+          <div class="segmented" id="settings-text"></div>
+        </section>
+        <section class="setting-group">
+          <h2>Gizlilik ve veriler</h2>
+          <p class="muted small">Ses kayıtların saklanmaz; yalnızca yazıya çevrilip silinir. Konuşma dökümlerin ve kelimelerin yalnızca senin hesabında tutulur.</p>
+          <p class="muted small">Konuşma geçmişini silersen dökümler ve özetler silinir; kelimelerin ve seviyen korunur.</p>
+          <button type="button" class="secondary danger" id="delete-history">Konuşma geçmişimi sil</button>
+          <p class="form-success" id="history-deleted" hidden></p>
+        </section>
+        <section class="setting-group">
+          <button type="button" class="secondary danger" id="settings-logout">Hesaptan çıkış yap</button>
+        </section>
+        <p class="form-success toast-saved" id="settings-saved" hidden>Kaydedildi.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Ana bölümler arasında gezinme; kurulum ve konuşma ekranlarında gizlenir -->
+  <nav class="tabbar" id="tabbar" hidden>
+    <button type="button" class="tab" data-go="home">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 10v11h6v-6h6v6h6V10z"/></svg>Konuşma
+    </button>
+    <button type="button" class="tab" data-go="words">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h11l3 3v15H5zm3 6v2h8V9zm0 4v2h8v-2z"/></svg>Kelimelerim
+    </button>
+    <button type="button" class="tab" data-go="progress">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10h3v10zm6.5 0V4h3v16zM17 20v-7h3v7z"/></svg>Gelişimim
+    </button>
+    <button type="button" class="tab" data-go="profile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6Z"/></svg>Profil
+    </button>
+  </nav>
+
+  <script src="/static/js/api.js" defer></script>
+  <script src="/static/js/character.js" defer></script>
+  <script src="/static/js/voice.js" defer></script>
+  <script src="/static/js/talk.js" defer></script>
+  <script src="/static/js/app.js" defer></script>
+</body>
+</html>
