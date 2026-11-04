@@ -3,9 +3,11 @@ const voice = (() => {
   const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
   const synth = window.speechSynthesis;
 
-  const FEMALE = ["female", "woman", "aria", "jenny", "zira", "samantha", "victoria", "karen", "susan", "hazel", "libby", "sonia", "michelle", "emma", "ava", "serena", "us english"];
-  const MALE = ["male", "man", "guy", "davis", "david", "mark", "daniel", "george", "ryan", "alex", "fred", "james", "christopher", "eric", "andrew", "brian"];
-  const TURKISH = /[çğıöşüÇĞİÖŞÜ]|\b(bu|ve|bir|için|ne|nasıl|evet|hayır|şimdi|kelime|anlamı|demek)\b/i;
+  // Türkçe sesler de adlarıyla ayrılır: Emel, Seda, Filiz kadın; Ahmet, Tolga erkek.
+  const FEMALE = ["female", "woman", "aria", "jenny", "zira", "samantha", "victoria", "karen", "susan", "hazel", "libby", "sonia", "michelle", "emma", "ava", "serena", "us english", "emel", "seda", "filiz", "yelda"];
+  const MALE = ["male", "man", "guy", "davis", "david", "mark", "daniel", "george", "ryan", "alex", "fred", "james", "christopher", "eric", "andrew", "brian", "ahmet", "tolga"];
+  // Türkçe harf içeren ya da Türkçede çok geçen kelimeler; Türkçe harfsiz cümleler de tanınsın.
+  const TURKISH = /[çğıöşüÇĞİÖŞÜ]|^(bu|ve|bir|için|ne|nasıl|evet|hayır|kelime|anlamı|demek|de|da|mi|mu|ben|sen|biz|siz|var|yok|ama|yani|tamam|sonra|gibi|iyi|bunu|sana|bana|olarak|diye|dersin|denir|istersen|haydi|hadi|harika|aynen|deriz|mesela|tabii)$/i;
 
   let recognition = null;
   let listening = false;
@@ -227,6 +229,11 @@ const voice = (() => {
     return synth ? synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith("en")) : [];
   }
 
+  // Doğal (Natural, Online, Google) sesler Türkçe harfleri ve vurguyu çok daha iyi okur.
+  function natural(voiceItem) {
+    return /natural|online|google/i.test(voiceItem.name);
+  }
+
   function pickVoice(lang, persona) {
     const voices = synth.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang));
     const chosen = lang === "en" && voices.find((v) => v.name === chosenVoice());
@@ -234,18 +241,28 @@ const voice = (() => {
     const wanted = persona === "Male_Coach" ? MALE : FEMALE;
     const other = persona === "Male_Coach" ? FEMALE : MALE;
     const gendered = voices.filter((v) => named(v, wanted) && !named(v, other));
+    // İngilizcede gecikmesiz yerel ses, Türkçede doğru telaffuz için doğal ses önce gelir.
+    const preferred = lang === "tr" ? natural : (v) => v.localService;
     return (
-      gendered.find((v) => v.localService) ??
+      gendered.find(preferred) ??
       gendered[0] ??
-      voices.find((v) => v.localService) ??
+      voices.find(preferred) ??
       voices[0] ??
       null
     );
   }
 
+  // Bu cihazda Türkçe okuyabilen bir ses var mı? Yoksa Türkçe cümleler yanlış okunur.
+  function hasTurkishVoice() {
+    return Boolean(synth?.getVoices().some((v) => v.lang.toLowerCase().startsWith("tr")));
+  }
+
   // Cümle Türkçe mi? Tek bir Türkçe isim ("Ayşe") cümleyi Türkçe yapmasın diye kelimelerin oranına bakılır.
   function isTurkish(sentence) {
-    const words = sentence.split(/\s+/).filter(Boolean);
+    const words = sentence
+      .split(/\s+/)
+      .map((word) => word.replace(/[^\p{L}']/gu, ""))
+      .filter(Boolean);
     const turkish = words.filter((word) => TURKISH.test(word)).length;
     if (words.length === 1) return turkish === 1;
     return turkish >= 2 && turkish / words.length >= 0.3;
@@ -262,7 +279,8 @@ const voice = (() => {
     if (!synth) return Promise.resolve(false);
     stopSpeaking();
     const turn = generation;
-    const sentences = text.match(/[^.!?]+[.!?]*/g) ?? [text];
+    // İki nokta da cümle sınırı sayılır: "Şöyle diyebilirsin: Istanbul is crowded." iki dilde okunur.
+    const sentences = text.match(/[^.!?:]+[.!?:]*/g) ?? [text];
     let spoke = false;
 
     return new Promise((resolve) => {
@@ -362,6 +380,8 @@ const voice = (() => {
     ready,
     playLaugh,
     englishVoices,
+    hasTurkishVoice,
+    isTurkish,
     chosenVoice,
     chooseVoice,
   };
