@@ -4,15 +4,32 @@ import random
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, time
 
 from app import path, progress, vocab
-from app.coach import Coach, Session, WordExplanation
+from app.coach import Coach, CoachOutputError, Session, WordExplanation, parse_response
 from app.db import Database
 from app.level import LevelState, LexicalProfile, update
 from app.plan import LearningPlan, PlanProgress
 from app.report import SessionReport, build_report
 from app.schemas import CoachResponse, Persona
+
+# Klavyeyle yazılan mesajlara eklenen işaret; partner bunu ses dökümünden ayırır.
+TYPED_MARK = "(Typed)"
+
+
+# Kayıtlı bir mesajın ekranda görünen hali. Uygulamanın iç komutları ("[Session started…]")
+# gösterilmez; partnerin JSON cevabından yalnızca söylediği metin alınır.
+def shown_text(message: dict[str, str]) -> str | None:
+    content = message["content"]
+    if message["role"] == "user":
+        if content.startswith("["):
+            return None
+        return content.split("\n(")[0]
+    try:
+        return parse_response(content).spoken_text
+    except CoachOutputError:
+        return None
 
 
 class SessionNotFound(Exception):
@@ -45,6 +62,13 @@ REPLY_LIMITS = {
 
 
 # Bir turun sonucu: koçun cevabı, güncel seviye, bu turda eklenen kelimeler ve (bitişte) rapor.
+# Bugünün sohbeti: ekranda gösterilecek mesajlar ve varsa devam edilecek açık konuşma.
+@dataclass
+class TodayChat:
+    open_session: dict | None = None
+    messages: list[dict[str, str]] = field(default_factory=list)
+
+
 @dataclass
 class TurnResult:
     session_id: str
@@ -104,24 +128,24 @@ class Tutor:
         self._db.add_messages(session_id, session.history)
         return self._record(session_id, learner_id, response, user_text=None)
 
+    # Yazılan mesaj "(Typed)" işaretiyle gider; partner ses tanıma kurallarını ona uygulamaz.
     def reply(
-        self, session_id: str, text: str, alternatives: list[str] | None = None
+        self,
+        session_id: str,
+        text: str,
+        alternatives: list[str] | None = None,
+        typed: bool = False,
     ) -> TurnResult:
         row, session = self._load(session_id)
         others = [item.strip() for item in alternatives or [] if item.strip() and item != text]
         message = text
-        if others:
+        if typed:
+            message += f"\n{TYPED_MARK}"
+        elif others:
             message += f"\n(Other possible transcriptions: {' | '.join(others)})"
         response = self._coach.reply(session, message)
         self._db.add_messages(session_id, session.history[-2:])
         return self._record(session_id, row["learner_id"], response, user_text=text)
-
-    # "Türkçe yardım" düğmesi: partner son söylediğini Türkçe açıklar ve örnek bir cevap verir.
-    def help(self, session_id: str) -> TurnResult:
-        row, session = self._load(session_id)
-        response = self._coach.help(session)
-        self._db.add_messages(session_id, session.history[-2:])
-        return self._record(session_id, row["learner_id"], response, user_text=None)
 
     def end(self, session_id: str) -> TurnResult:
         row, session = self._load(session_id)
@@ -134,6 +158,22 @@ class Tutor:
         self._db.save_notes(row["learner_id"], last_summary=summary)
         result.report = build_report(self._db, session_id)
         return result
+
+    def today(self, learner_id: str) -> TodayChat:
+        now = self._clock()
+        local = progress.LOCAL_TIME
+        midnight = datetime.combine(now.astimezone(local).date(), time(), local)
+        chat = TodayChat()
+        for row in self._db.sessions_since(learner_id, midnight.astimezone(UTC).isoformat()):
+            for message in self._db.get_messages(row["id"]):
+                text = shown_text(message)
+                if text:
+                    chat.messages.append({"role": message["role"], "text": text})
+            if row["ended_at"] is None:
+                chat.open_session = {
+                    key: row[key] for key in ("id", "topic", "lesson", "mode", "planned_minutes")
+                }
+        return chat
 
     # Açık bir oturumu veritabanından geri kurar; sunucu yeniden başlasa da sohbet devam eder.
     def _load(self, session_id: str) -> tuple:
@@ -167,7 +207,7 @@ class Tutor:
         added = []
         for entry in response.vocab_box_update:
             expression = entry.expression.strip()
-            if not expression:
+            if not expression or vocab.is_sentence(expression):
                 continue
             existing = self._db.get_word(learner_id, expression)
             if existing:
@@ -483,21 +523,38 @@ class Tutor:
         if not expression or self._db.get_word(learner_id, expression):
             return False
         now = self._clock()
+        # Kelimeye dokunulduğunda gösterilen açıklama kayda da yazılır.
+        explanation = self._explanations.get(expression.lower())
         self._db.add_word(
             learner_id,
             None,
             expression,
-            None,
-            None,
-            None,
+            explanation.turkish_meaning if explanation else None,
+            self.word_level(expression),
+            explanation.example if explanation else None,
             status=vocab.status_for(0),
             next_review=vocab.next_review(0, now.date()).isoformat(),
             now=now.isoformat(),
         )
         return True
 
+    def delete_word(self, learner_id: str, word_id: int) -> bool:
+        return self._db.delete_word(learner_id, word_id)
+
     def due_count(self, learner_id: str) -> int:
         return len(self._db.due_words(learner_id, self._clock().date().isoformat(), limit=1000))
 
     def vocabulary(self, learner_id: str):
         return self._db.list_words(learner_id)
+
+    # Türkçe anlamı eksik kayıtları (partnerin boş bıraktığı ya da eski kayıtlar) tamamlar.
+    # Bir kaydın açıklaması alınamazsa o kayıt atlanır, diğerlerine devam edilir.
+    def fill_meanings(self, learner_id: str, limit: int = 10) -> None:
+        missing = [w for w in self._db.list_words(learner_id) if not w["turkish_meaning"]]
+        for word in missing[:limit]:
+            sentence = word["example"] or ""
+            try:
+                explanation = self.explain_word(learner_id, word["expression"], sentence)
+            except CoachOutputError:
+                continue
+            self._db.fill_word(word["id"], explanation.turkish_meaning, None, explanation.example)
