@@ -980,7 +980,7 @@ input.invalid {
   font-size: 0.9375rem;
 }
 
-/* Konuşma ekranı: lacivert bir görüntülü arama */
+/* Konuşma ekranı: üstte partner, ortada sohbet, altta yazı kutusu ve mikrofon */
 .call {
   position: fixed;
   inset: 0;
@@ -988,52 +988,92 @@ input.invalid {
   display: flex;
   flex-direction: column;
   align-items: center;
-  overflow-y: auto;
-  padding: 16px 16px 24px;
   background: var(--call-bg);
   color: var(--call-ink);
 }
 
 .call > * {
   width: 100%;
-  max-width: 600px;
+  max-width: 720px;
 }
 
 .call-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--call-ink) 10%, transparent);
 }
 
-.call-bar .link {
-  color: var(--call-muted);
-}
-
-.end-call {
+.call-back {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   border: none;
-  border-radius: 999px;
-  padding: 8px 18px;
-  background: var(--alert);
-  color: #fff;
-  font-weight: 700;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--call-ink);
+}
+
+.call-back svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.call-back:hover {
+  background: var(--call-surface);
+}
+
+.partner-face {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+  background: var(--call-surface);
+  box-shadow: 0 0 0 2px var(--call-surface);
+}
+
+/* Partner konuşurken portrenin etrafındaki halka nefes alır. */
+.partner-face[data-state="talk"] {
+  animation: speaking 1.6s ease-in-out infinite;
+}
+
+@keyframes speaking {
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--listen) 45%, transparent);
+  }
 }
 
 .call-info {
   display: flex;
   flex-direction: column;
-  margin: 0;
-  color: var(--call-muted);
-  text-align: center;
+  flex: 1;
+  min-width: 0;
   line-height: 1.3;
 }
 
 #talk-topic {
-  color: var(--call-ink);
+  overflow: hidden;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.call-status {
+  color: var(--call-muted);
+  font-size: 0.8125rem;
+}
+
+.call-status[data-state="listening"] {
+  color: var(--listen);
 }
 
 .timer {
+  color: var(--call-muted);
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1041,94 +1081,13 @@ input.invalid {
   color: #ffb199;
 }
 
-.stage {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 24px 0;
-}
-
-.character.huge {
-  width: min(240px, 58vw);
-  height: min(240px, 58vw);
-  cursor: pointer;
-  background: var(--call-surface);
-  box-shadow: 0 0 0 6px var(--call-surface);
-}
-
-/* Partner konuşurken portrenin etrafındaki halka yavaşça nefes alır. */
-.character.huge[data-state="talk"] {
-  animation: speaking 1.6s ease-in-out infinite;
-}
-
-@keyframes speaking {
-  50% {
-    box-shadow: 0 0 0 14px color-mix(in srgb, var(--call-ink) 22%, transparent);
-  }
-}
-
-/* Partnerin sözleri altyazı gibi: büyük, okunaklı, ortalı */
-.subtitle {
-  max-width: 30ch;
-  margin: 0;
-  font-size: clamp(1.25rem, 4.6vw, 1.625rem);
-  line-height: 1.4;
-  text-align: center;
-  text-wrap: balance;
-}
-
-.heard {
-  min-height: 1.5em;
-  margin: 0;
-  color: var(--call-muted);
-  font-style: italic;
-  text-align: center;
-}
-
-.toast {
-  max-width: 100%;
-  padding: 10px 14px;
-  border-radius: var(--radius-s);
-  background: var(--call-surface);
-  color: var(--call-ink);
-}
-
-.toast .link {
-  color: #9ec0ff;
-}
-
-/* Mikrofon: tek büyük düğme; halkanın rengi durumu gösterir. */
-.mic-area {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.mic-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-}
-
-.help-button {
-  justify-self: start;
-  white-space: nowrap;
-  padding: 10px 16px;
-  border: 1px solid color-mix(in srgb, var(--call-ink) 30%, transparent);
+.end-call {
+  border: none;
   border-radius: 999px;
-  background: transparent;
-  color: var(--call-ink);
+  padding: 8px 16px;
+  background: var(--alert);
+  color: #fff;
   font-weight: 700;
-}
-
-.help-button:hover {
-  background: var(--call-surface);
 }
 
 .menu {
@@ -1137,7 +1096,7 @@ input.invalid {
 
 .menu summary {
   list-style: none;
-  padding: 4px 12px;
+  padding: 4px 10px;
   border-radius: 999px;
   color: var(--call-ink);
   font-size: 1.5rem;
@@ -1189,21 +1148,205 @@ button.menu-item:hover {
   background: color-mix(in srgb, var(--call-ink) 10%, transparent);
 }
 
+/* Sohbet: partner solda, öğrenci sağda */
+.thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 20px 16px;
+  overflow-y: auto;
+  list-style: none;
+  overscroll-behavior: contain;
+}
+
+.bubble {
+  max-width: min(78%, 34rem);
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.bubble-assistant {
+  align-self: flex-start;
+  border-top-left-radius: 6px;
+  background: var(--call-surface);
+}
+
+.bubble-user {
+  align-self: flex-end;
+  border-top-right-radius: 6px;
+  background: color-mix(in srgb, var(--listen) 28%, var(--call-surface));
+}
+
+.bubble.is-pending {
+  color: var(--call-muted);
+  font-style: italic;
+}
+
+.thread-saved {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--listen) 18%, transparent);
+  color: var(--listen);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.word {
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.word:hover {
+  border-radius: 4px;
+  background: color-mix(in srgb, #9ec0ff 22%, transparent);
+}
+
+/* Kısa bilgi ve kelime kartı yazı kutusunun hemen üstünde açılır. */
+.call > .toast,
+.call > .word-sheet {
+  width: calc(100% - 32px);
+}
+
+.toast {
+  margin-bottom: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-s);
+  background: var(--call-surface);
+  color: var(--call-ink);
+  font-size: 0.9375rem;
+}
+
+.word-sheet {
+  margin-bottom: 8px;
+  padding: 14px 16px;
+  border-radius: var(--radius-m);
+  background: var(--call-surface);
+  box-shadow: 0 -6px 24px rgb(0 0 0 / 0.25);
+}
+
+.word-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.word-sheet-head strong {
+  font-size: 1.25rem;
+}
+
+.sheet-close {
+  margin-left: auto;
+  padding: 0 6px;
+  border: none;
+  background: none;
+  color: var(--call-muted);
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.sheet-meaning {
+  margin: 4px 0 0;
+  font-size: 1.0625rem;
+}
+
+.sheet-example {
+  margin: 8px 0 0;
+  color: var(--call-muted);
+  font-style: italic;
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.sheet-actions .ghost {
+  padding: 10px 18px;
+  border: 1px solid color-mix(in srgb, var(--call-ink) 30%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--call-ink);
+  font-weight: 700;
+}
+
+.sheet-actions .primary {
+  padding: 10px 18px;
+}
+
+/* Yazı kutusu ve mikrofon aynı satırda */
+.composer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px calc(14px + env(safe-area-inset-bottom));
+}
+
+.composer input {
+  flex: 1;
+  min-width: 0;
+  padding: 13px 18px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--call-surface);
+  color: var(--call-ink);
+}
+
+.composer input::placeholder {
+  color: var(--call-muted);
+}
+
+.composer input:focus {
+  border-color: #9ec0ff;
+  outline: none;
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #9ec0ff;
+  color: #0d1626;
+}
+
+.send svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
 .voice-ring {
   display: grid;
   place-items: center;
-  width: 76px;
-  height: 76px;
+  flex-shrink: 0;
+  width: 52px;
+  height: 52px;
+  padding: 0;
   border: none;
   border-radius: 50%;
   background: var(--call-surface);
   color: var(--call-ink);
-  box-shadow: 0 0 0 4px var(--call-surface);
 }
 
 .voice-ring svg {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   fill: currentColor;
 }
 
@@ -1215,13 +1358,13 @@ button.menu-item:hover {
 
 @keyframes listening {
   50% {
-    box-shadow: 0 0 0 12px color-mix(in srgb, var(--listen) 35%, transparent);
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--listen) 35%, transparent);
   }
 }
 
 .voice-ring[data-state="thinking"],
 .voice-ring[data-state="connecting"] {
-  box-shadow: 0 0 0 4px #9ec0ff;
+  box-shadow: 0 0 0 3px #9ec0ff;
 }
 
 .voice-ring[aria-pressed="true"] {
@@ -1230,55 +1373,19 @@ button.menu-item:hover {
   box-shadow: inset 0 0 0 2px var(--call-muted);
 }
 
-.status {
-  margin: 0;
-  color: var(--call-muted);
-  font-weight: 700;
-}
+@media (max-width: 520px) {
+  .call-bar {
+    gap: 6px;
+    padding: 10px 10px;
+  }
 
-.text-fallback {
-  display: flex;
-  gap: 8px;
-  margin-top: 16px;
-}
+  .timer {
+    display: none;
+  }
 
-.text-fallback input {
-  background: var(--call-surface);
-  border-color: transparent;
-  color: var(--call-ink);
-}
-
-.transcript {
-  list-style: none;
-  margin: 20px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.line {
-  padding: 10px 14px;
-  border-radius: var(--radius-s);
-  background: var(--call-surface);
-}
-
-.line-user {
-  align-self: flex-end;
-  max-width: 85%;
-  background: color-mix(in srgb, var(--listen) 25%, var(--call-surface));
-}
-
-.word {
-  padding: 0;
-  border: none;
-  border-bottom: 1px dotted var(--call-muted);
-  background: none;
-  color: inherit;
-}
-
-.word:hover {
-  color: #9ec0ff;
+  .bubble {
+    max-width: 86%;
+  }
 }
 
 /* Özet */
@@ -1358,8 +1465,8 @@ body:has(.tabbar:not([hidden])) .app {
   z-index: 4;
   display: flex;
   justify-content: center;
-  gap: 8px;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  gap: 4px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--surface);
 }
@@ -1369,8 +1476,9 @@ body:has(.tabbar:not([hidden])) .app {
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  min-width: 88px;
-  padding: 6px 10px;
+  flex: 1;
+  max-width: 96px;
+  padding: 6px 4px;
   border: none;
   border-radius: var(--radius-s);
   background: none;
@@ -1392,6 +1500,10 @@ body:has(.tabbar:not([hidden])) .app {
 
 /* Telefon ekranları */
 @media (max-width: 520px) {
+  .tab {
+    font-size: 0.75rem;
+  }
+
   .row {
     flex-direction: column;
   }
@@ -1495,26 +1607,70 @@ p.empty {
   margin: 0 0 16px;
 }
 
-/* Kelimelerim */
-#words-filters {
-  margin-bottom: 16px;
+/* Kelimelerim ve Cümlelerim */
+.list-summary {
+  margin: -12px 0 20px;
+  color: var(--muted);
 }
 
 .word-list {
   display: grid;
+  gap: 28px;
+}
+
+.word-group {
+  display: grid;
   gap: 10px;
+}
+
+.word-group h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.word-group h2 .count {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.word-group-hint {
+  margin: -6px 0 2px;
+  color: var(--muted);
+  font-size: 0.875rem;
 }
 
 .word-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 6px;
 }
 
 .word-head strong {
+  display: block;
   font-size: 1.15rem;
+}
+
+.word-card .word-meaning {
+  margin: 2px 0 0;
+  font-size: 1rem;
+}
+
+.word-card .word-meaning.is-missing {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.word-card .word-example {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-style: italic;
 }
 
 .listen {
@@ -1530,10 +1686,29 @@ p.empty {
   cursor: pointer;
 }
 
-.word-card .word-state {
-  margin: 8px 0 0;
+.word-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: 0.8125rem;
+}
+
+.word-level {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--sky);
+  color: var(--cobalt-deep);
+  font-weight: 700;
+}
+
+.word-foot .word-remove {
+  margin-left: auto;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 /* Gelişim */

@@ -17,12 +17,6 @@ const AGE_LABELS = {
   "36+": "36 yaş ve üzeri",
 };
 const PARTNERS = { Female_Coach: "Kadın partner", Male_Coach: "Erkek partner" };
-const STATUS_LABELS = {
-  NEW: "Yeni",
-  LEARNING: "Öğreniyorum",
-  REVIEW: "Tekrar ediyorum",
-  MASTERED: "Kullanabiliyorum",
-};
 
 const $ = (id) => document.getElementById(id);
 let me = null;
@@ -46,6 +40,7 @@ const TAB_OF = {
   home: "home",
   notifications: "home",
   words: "words",
+  sentences: "sentences",
   progress: "progress",
   profile: "profile",
   personal: "profile",
@@ -174,7 +169,9 @@ for (const button of document.querySelectorAll("[data-go]")) {
   button.addEventListener("click", () => {
     const target = button.dataset.go;
     if (target === "home") return showHome();
-    if (target === "words") return showWords();
+    if (target === "words") return showWords("words");
+    if (target === "sentences") return showWords("sentences");
+    if (target === "due") return showWords("due");
     if (target === "profile") return showProfile();
     if (target === "progress") return showProgressScreen();
     if (target === "personal") return showPersonal();
@@ -543,7 +540,7 @@ function showHome() {
   $("row-continue").hidden = !(started && (me.last_summary || me.last_topic));
   $("home-continue").textContent = me.last_summary || me.last_topic || "";
   $("row-due").hidden = !me.due_words;
-  $("home-due").textContent = `${me.due_words} kelime. Partnerin bugün bunları konuşmada kullanacak.`;
+  $("home-due").textContent = `${me.due_words} kayıt. Partnerin bugün bunları konuşmada kullanacak.`;
   show("home");
 }
 
@@ -584,7 +581,7 @@ let mode = "practice";
 function startTalk(topicChoice, length, lesson = null, talkMode = "practice") {
   mode = talkMode;
   show("talk");
-  talk.start(me, showSummary, topicChoice, length, talkMode, lesson);
+  talk.start(me, showSummary, topicChoice, length, talkMode, lesson, showHome);
 }
 
 function startSuggested() {
@@ -700,15 +697,17 @@ function addList(container, title, items) {
   container.append(heading, list);
 }
 
-// Kelimelerim: tekrar zamanı gelenler önce; her kelime dinlenebilir.
-const WORD_FILTERS = [
-  ["due", "Tekrar zamanı"],
-  ["learning", "Öğreniyorum"],
-  ["mastered", "Kullanabildiklerim"],
-  ["all", "Hepsi"],
+// Kelimelerim ve Cümlelerim ayrı sekmelerdir. Kayıtlar üç bölümde gösterilir: bugün tekrar
+// edilecekler, öğrenilmekte olanlar ve öğrenilenler. Boş bölüm gösterilmez.
+const LIST_KIND = { words: "word", sentences: "pattern" };
+const LIST_NOUN = { words: "kelime", sentences: "cümle kalıbı" };
+const WORD_GROUPS = [
+  ["due", "Bugün tekrar et", "Partnerin bugünkü konuşmada bunları kullanmanı sağlayacak."],
+  ["learning", "Öğreniyorum", "Tekrar günü gelince partnerin bunları yeniden kullanacak."],
+  ["mastered", "Öğrendiklerim", "Beş tekrarı tamamladın; konuşmalarda kullanabiliyorsun."],
 ];
 let words = [];
-let wordFilter = "due";
+let currentList = "words";
 
 function isDue(word) {
   return word.status !== "MASTERED" && word.next_review.slice(0, 10) <= localToday();
@@ -719,36 +718,49 @@ function localToday() {
   return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
 
-function matches(word, filter) {
-  if (filter === "due") return isDue(word);
-  if (filter === "learning") return word.status !== "MASTERED";
-  if (filter === "mastered") return word.status === "MASTERED";
-  return true;
+function groupOf(word) {
+  if (word.status === "MASTERED") return "mastered";
+  return isDue(word) ? "due" : "learning";
 }
 
-async function showWords() {
+// "due" istenirse tekrar zamanı gelen kaydın bulunduğu sekme açılır.
+async function showWords(name) {
   const current = ticket();
   words = await api.vocabulary();
   if (!current()) return;
-  if (!words.some(isDue) && wordFilter === "due") wordFilter = "all";
+  if (name === "due") name = words.find(isDue)?.kind === "pattern" ? "sentences" : "words";
+  currentList = name;
   renderWords();
-  show("words");
+  show(name);
 }
 
 function renderWords() {
-  $("words-empty").hidden = words.length > 0;
-  $("words-filters").hidden = words.length === 0;
-  renderOptions(
-    $("words-filters"),
-    WORD_FILTERS.map(([key, label]) => [key, `${label} (${words.filter((w) => matches(w, key)).length})`]),
-    wordFilter,
-    (key) => {
-      wordFilter = key;
-      renderWords();
-    },
+  const name = currentList;
+  const shown = words.filter((word) => word.kind === LIST_KIND[name]);
+  const due = shown.filter(isDue).length;
+  $(`${name}-empty`).hidden = shown.length > 0;
+  $(`${name}-summary`).hidden = shown.length === 0;
+  $(`${name}-summary`).textContent =
+    `${shown.length} ${LIST_NOUN[name]}` + (due ? ` · ${due} tanesi bugün tekrarda` : "");
+  $(`${name}-list`).replaceChildren(
+    ...WORD_GROUPS.map(([key, title, hint]) => {
+      const items = shown.filter((word) => groupOf(word) === key);
+      if (!items.length) return "";
+      const section = document.createElement("section");
+      section.className = "word-group";
+      const heading = document.createElement("h2");
+      heading.textContent = title;
+      const count = document.createElement("span");
+      count.className = "count";
+      count.textContent = items.length;
+      heading.append(count);
+      const note = document.createElement("p");
+      note.className = "word-group-hint";
+      note.textContent = hint;
+      section.append(heading, note, ...items.map(wordCard));
+      return section;
+    }),
   );
-  const list = $("words-list");
-  list.replaceChildren(...words.filter((word) => matches(word, wordFilter)).map(wordCard));
 }
 
 const DATE_FORMAT = new Intl.DateTimeFormat("tr-TR", { day: "numeric", month: "long" });
@@ -759,38 +771,70 @@ function wordCard(word) {
 
   const head = document.createElement("div");
   head.className = "word-head";
+  const text = document.createElement("div");
   const name = document.createElement("strong");
   name.textContent = word.expression;
+  const meaning = document.createElement("p");
+  meaning.className = "word-meaning";
+  meaning.textContent = word.turkish_meaning || "Türkçe anlamı hazırlanıyor; sayfayı yenileyince görünür.";
+  meaning.classList.toggle("is-missing", !word.turkish_meaning);
+  text.append(name, meaning);
+
   const listen = document.createElement("button");
   listen.type = "button";
   listen.className = "listen";
-  listen.setAttribute("aria-label", `${word.expression} kelimesini dinle`);
+  listen.setAttribute("aria-label", `${word.expression} dinle`);
   listen.innerHTML =
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9Zm12.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4Z"/></svg>';
-  listen.addEventListener("click", () => voice.speak(word.expression, me.partner, 0.85));
-  head.append(name, listen);
+  listen.addEventListener("click", () =>
+    voice.speak(word.expression.replace(/\.\.\.|…/g, ""), me.partner, 0.85),
+  );
+  head.append(text, listen);
   card.append(head);
 
-  if (word.turkish_meaning) {
-    const meaning = document.createElement("p");
-    meaning.textContent = word.turkish_meaning;
-    card.append(meaning);
-  }
   if (word.example) {
     const example = document.createElement("p");
-    example.className = "muted small";
+    example.className = "word-example";
     example.textContent = word.example;
     card.append(example);
   }
-  const state = document.createElement("p");
+
+  const foot = document.createElement("div");
+  foot.className = "word-foot";
+  if (word.cefr_level) {
+    const level = document.createElement("span");
+    level.className = "word-level";
+    level.textContent = word.cefr_level;
+    foot.append(level);
+  }
+  const state = document.createElement("span");
   state.className = "word-state";
-  state.textContent = isDue(word)
-    ? "Tekrar zamanı geldi; partnerin bir sonraki konuşmada kullanacak."
-    : word.status === "MASTERED"
-      ? "Konuşmalarda kullanabiliyorsun."
-      : `${STATUS_LABELS[word.status]}. Sonraki tekrar: ${DATE_FORMAT.format(new Date(word.next_review))}.`;
-  if (word.cefr_level) state.prepend(`${word.cefr_level}. `);
-  card.append(state);
+  state.textContent =
+    groupOf(word) === "learning"
+      ? `Sonraki tekrar ${DATE_FORMAT.format(new Date(word.next_review))} · ${word.review_count}/5`
+      : groupOf(word) === "due"
+        ? `Tekrar bugün · ${word.review_count}/5`
+        : "5/5 tamamlandı";
+
+  // Öğrencinin istemediği bir kayıt listeden çıkarılabilir.
+  const remove = document.createElement("button");
+  remove.type = "button";
+  remove.className = "link word-remove";
+  remove.textContent = "Çıkar";
+  remove.setAttribute("aria-label", `${word.expression} listeden çıkar`);
+  remove.addEventListener("click", async () => {
+    remove.disabled = true;
+    try {
+      await api.deleteWord(word.id);
+      words = words.filter((item) => item.id !== word.id);
+      renderWords();
+    } catch (error) {
+      remove.disabled = false;
+      state.textContent = error.message;
+    }
+  });
+  foot.append(state, remove);
+  card.append(foot);
   return card;
 }
 
@@ -873,8 +917,7 @@ async function showProgressScreen() {
 }
 
 $("progress-review").addEventListener("click", () => {
-  wordFilter = "due";
-  showWords();
+  showWords("due");
 });
 
 function listItem(text) {
@@ -953,7 +996,7 @@ async function showNotifications() {
       button.append(title, text, day);
       button.addEventListener("click", () => {
         const target = NOTICE_TARGETS[notice.type];
-        if (target === "words") return showWords();
+        if (target === "words") return showWords("due");
         if (target === "progress") return showProgressScreen();
         showHome();
       });
