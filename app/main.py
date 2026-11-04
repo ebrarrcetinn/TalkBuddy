@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from app import assessment, wordlist
+from app import assessment, vocab, wordlist
 from app.accounts import (
     AGE_GROUPS,
     GOALS,
@@ -188,6 +188,8 @@ class MessageRequest(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
     # Ses tanımanın aynı söz için önerdiği diğer yazımlar; partner anlamı çıkarırken kullanır.
     alternatives: list[Annotated[str, Field(max_length=2000)]] = Field(default=[], max_length=3)
+    # Mesaj klavyeyle yazıldıysa true; konuşmadan gelen dökümden ayrılır.
+    typed: bool = False
 
 
 # Cevaplar
@@ -267,6 +269,25 @@ class AssessmentResultOut(BaseModel):
 
 
 # Tarayıcıya giden konuşma cevabı: koçun JSON'undan sadece ekranın ihtiyaç duyduğu alanlar.
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    text: str
+
+
+class OpenSession(BaseModel):
+    id: str
+    topic: str | None
+    lesson: str | None
+    mode: str
+    planned_minutes: int | None
+
+
+# Bugünün sohbeti: ekrandan çıkıp dönen öğrenci mesajlarını görür, açık konuşmaya devam eder.
+class TodayOut(BaseModel):
+    open_session: OpenSession | None
+    messages: list[ChatMessage]
+
+
 class TurnReply(BaseModel):
     session_id: str
     spoken_text: str
@@ -307,6 +328,7 @@ class EndReply(TurnReply):
 
 
 class WordItem(BaseModel):
+    id: int
     expression: str
     turkish_meaning: str | None
     cefr_level: str | None
@@ -314,6 +336,7 @@ class WordItem(BaseModel):
     status: str
     review_count: int
     next_review: str
+    kind: str
 
 
 # Tarayıcı stil ve kod dosyalarını her açılışta sunucuya sorar; dosya değişmediyse yeniden
@@ -663,18 +686,20 @@ def create_app(
             )
         )
 
+    @app.get("/api/sessions/today")
+    def today_chat(user: ReadyUser) -> TodayOut:
+        chat = tutor.today(user["id"])
+        return TodayOut(open_session=chat.open_session, messages=chat.messages)
+
     @app.post("/api/sessions/{session_id}/messages")
     def send_message(session_id: str, body: MessageRequest, user: ReadyUser) -> TurnReply:
         own_session(session_id, user)
         started = time.perf_counter()
-        result = run(lambda: tutor.reply(session_id, body.text.strip(), body.alternatives))
+        result = run(
+            lambda: tutor.reply(session_id, body.text.strip(), body.alternatives, body.typed)
+        )
         logger.info("Partnerin cevabı %.1f sn sürdü.", time.perf_counter() - started)
         return TurnReply.from_result(result)
-
-    @app.post("/api/sessions/{session_id}/help")
-    def turkish_help(session_id: str, user: ReadyUser) -> TurnReply:
-        own_session(session_id, user)
-        return TurnReply.from_result(run(lambda: tutor.help(session_id)))
 
     @app.post("/api/sessions/{session_id}/end")
     def end_session(session_id: str, user: ReadyUser) -> EndReply:
@@ -720,8 +745,14 @@ def create_app(
 
     @app.get("/api/me/vocabulary")
     def vocabulary(user: User) -> list[WordItem]:
+        # Anlamı eksik kayıtlar tamamlanmaya çalışılır; servis yanıt vermezse liste yine gelir.
+        try:
+            tutor.fill_meanings(user["id"])
+        except APIError:
+            logger.warning("Kelime anlamları tamamlanamadı.")
+        fields = set(WordItem.model_fields) - {"kind"}
         return [
-            WordItem(**{key: row[key] for key in WordItem.model_fields})
+            WordItem(**{key: row[key] for key in fields}, kind=vocab.kind(row["expression"]))
             for row in tutor.vocabulary(user["id"])
         ]
 
@@ -729,6 +760,12 @@ def create_app(
     @app.post("/api/me/vocabulary")
     def save_word(body: WordRequest, user: User) -> dict[str, bool]:
         return {"saved": tutor.save_word(user["id"], body.expression)}
+
+    # Öğrenci istemediği bir kaydı listesinden çıkarır; başkasının kelimesi bulunamaz (404).
+    @app.delete("/api/me/vocabulary/{word_id}", status_code=204)
+    def delete_word(word_id: int, user: User) -> None:
+        if not tutor.delete_word(user["id"], word_id):
+            raise HTTPException(404, "Bu kelime listende bulunamadı.")
 
     @app.get("/api/health")
     def health() -> dict[str, str]:
