@@ -3,7 +3,7 @@ from datetime import date
 
 import pytest
 
-from app.vocab import is_sentence, next_review, status_for
+from app.vocab import kind, next_review, status_for
 
 TODAY = date(2026, 11, 1)
 
@@ -24,15 +24,15 @@ def test_status_follows_review_count(review_count, status):
 
 
 @pytest.mark.parametrize(
-    ("expression", "sentence"),
+    ("expression", "list_kind"),
     [
-        ("I'm from Turkey.", True),
-        ("Where do you live?", True),
-        ("borrow", False),
-        ("give up", False),
-        ("I'm looking forward to ...", False),
-        ("How do you say ... in English?", False),
+        ("borrow", "word"),
+        ("give up", "word"),
+        ("I'm looking forward to ...", "sentence"),
+        ("How do you say ... in English?", "sentence"),
+        ("Istanbul is beautiful, but it's very crowded.", "sentence"),
+        ("Where do you live?", "sentence"),
     ],
 )
-def test_full_sentences_are_told_apart_from_words_and_patterns(expression, sentence):
-    assert is_sentence(expression) is sentence
+def test_entries_are_sorted_into_words_and_sentences(expression, list_kind):
+    assert kind(expression) == list_kind

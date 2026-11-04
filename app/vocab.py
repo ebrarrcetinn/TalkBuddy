@@ -22,15 +22,10 @@ def next_review(review_count: int, today: date) -> date:
     return today + timedelta(days=interval)
 
 
-# Boşluğu ("...") olan ifadeler kalıptır ("I'm looking forward to ..."); diğerleri kelimedir.
+# Kayıt Cümlelerim'e mi Kelimelerim'e mi gider? Boşluklu kalıplar ("I'm looking forward to ...")
+# ve nokta, soru ya da ünlem işaretiyle biten çok kelimeli ifadeler cümledir; diğerleri kelimedir.
 def kind(expression: str) -> str:
-    return "pattern" if "..." in expression or "…" in expression else "word"
-
-
-# Kelime kutusuna yalnızca kelime ve kalıp girer. Nokta, soru ya da ünlem işaretiyle biten ve
-# "..." boşluğu olmayan çok kelimeli bir ifade tam cümle sayılır ("I'm from Turkey.").
-def is_sentence(expression: str) -> bool:
     text = expression.strip()
-    if kind(text) == "pattern":
-        return False
-    return len(text.split()) > 1 and text[-1:] in ".?!"
+    if "..." in text or "…" in text:
+        return "sentence"
+    return "sentence" if len(text.split()) > 1 and text[-1:] in ".?!" else "word"

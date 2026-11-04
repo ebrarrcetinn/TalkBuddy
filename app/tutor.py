@@ -207,7 +207,7 @@ class Tutor:
         added = []
         for entry in response.vocab_box_update:
             expression = entry.expression.strip()
-            if not expression or vocab.is_sentence(expression):
+            if not expression:
                 continue
             existing = self._db.get_word(learner_id, expression)
             if existing:

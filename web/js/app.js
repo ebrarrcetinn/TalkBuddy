@@ -697,10 +697,10 @@ function addList(container, title, items) {
   container.append(heading, list);
 }
 
-// Kelimelerim ve Cümlelerim ayrı sekmelerdir. Kayıtlar üç bölümde gösterilir: bugün tekrar
-// edilecekler, öğrenilmekte olanlar ve öğrenilenler. Boş bölüm gösterilmez.
-const LIST_KIND = { words: "word", sentences: "pattern" };
-const LIST_NOUN = { words: "kelime", sentences: "cümle kalıbı" };
+// Kelimelerim ve Cümlelerim (kalıplar ve tam cümleler) ayrı sekmelerdir. Kayıtlar üç bölümde
+// gösterilir: bugün tekrar edilecekler, öğrenilmekte olanlar ve öğrenilenler. Boş bölüm gösterilmez.
+const LIST_KIND = { words: "word", sentences: "sentence" };
+const LIST_NOUN = { words: "kelime", sentences: "cümle" };
 const WORD_GROUPS = [
   ["due", "Bugün tekrar et", "Partnerin bugünkü konuşmada bunları kullanmanı sağlayacak."],
   ["learning", "Öğreniyorum", "Tekrar günü gelince partnerin bunları yeniden kullanacak."],
@@ -728,7 +728,7 @@ async function showWords(name) {
   const current = ticket();
   words = await api.vocabulary();
   if (!current()) return;
-  if (name === "due") name = words.find(isDue)?.kind === "pattern" ? "sentences" : "words";
+  if (name === "due") name = words.find(isDue)?.kind === "sentence" ? "sentences" : "words";
   currentList = name;
   renderWords();
   show(name);

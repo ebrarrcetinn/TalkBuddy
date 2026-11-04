@@ -159,7 +159,7 @@ def test_words_and_patterns_are_listed_apart_and_removable(tmp_path):
     client.post("/api/me/vocabulary", json={"expression": "school"})
     client.post("/api/me/vocabulary", json={"expression": "It depends on ..."})
     pattern, word = client.get("/api/me/vocabulary").json()
-    assert (pattern["kind"], word["kind"]) == ("pattern", "word")
+    assert (pattern["kind"], word["kind"]) == ("sentence", "word")
     assert (pattern["turkish_meaning"], word["turkish_meaning"]) == ("... bağlı", "okul")
 
     client.post("/api/auth/logout")

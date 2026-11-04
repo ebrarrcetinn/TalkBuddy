@@ -50,14 +50,14 @@ def test_ended_session_cannot_continue(tmp_path):
         tutor.reply(session_id, "hello")
 
 
-def test_only_words_and_patterns_reach_the_vocabulary_box(tmp_path):
-    entries = ["I'm from Turkey.", "crowded", "It depends on ..."]
+def test_words_patterns_and_sentences_are_saved(tmp_path):
+    entries = ["crowded", "It depends on ...", "Istanbul is beautiful, but it's very crowded."]
     tutor = make_tutor(tmp_path, FakeLLM(coach_json(VOCAB_BOX_UPDATE=entries)))
 
     result = tutor.start(LEARNER, Persona.FEMALE)
 
-    assert result.new_words == ["crowded", "It depends on ..."]
-    assert {w["expression"] for w in tutor.vocabulary(LEARNER)} == set(result.new_words)
+    assert result.new_words == entries
+    assert {w["expression"] for w in tutor.vocabulary(LEARNER)} == set(entries)
 
 
 def test_saved_words_get_their_turkish_meaning(tmp_path):
