@@ -13,19 +13,15 @@ PROMPT_PATH = Path(__file__).parent / "prompts" / "coach_system.md"
 # Kullanıcı mesajı olmayan anlarda Claude'a gönderilen iç komutlar.
 SESSION_START = "[Session started. Greet the learner and begin.]"
 SESSION_END = "[The learner wants to end the session. Give the session summary.]"
-TURKISH_HELP = (
-    "[The learner pressed the Turkish help button. In Turkish, briefly explain what you just "
-    "said or asked, then give one short English sentence they could use to answer. Keep the "
-    "conversation going; do not ask them to repeat anything.]"
-)
 
 
 # Dökümdeki bir kelimeye dokunulunca istenen kısa açıklama.
 EXPLAIN_PROMPT = (
-    "You help Turkish learners of English. Explain one English word as it is used in the given "
-    "sentence. Reply with JSON only, no other text:\n"
-    '{"turkish_meaning": "<short Turkish meaning, a few words>", '
-    '"example": "<one short, simple English example sentence using the word in the same meaning>"}'
+    "You help Turkish speakers learning English. Explain one English word, phrase or sentence "
+    'pattern ("..." marks the open slot of a pattern) as it is used in the given sentence. '
+    "Reply with JSON only, no other text:\n"
+    '{"turkish_meaning": "<short Turkish meaning; for a pattern, its Turkish equivalent>", '
+    '"example": "<one short, simple English example sentence using it in the same meaning>"}'
 )
 
 
@@ -85,9 +81,6 @@ class Coach:
 
     def end(self, session: Session) -> CoachResponse:
         return self._turn(session, SESSION_END)
-
-    def help(self, session: Session) -> CoachResponse:
-        return self._turn(session, TURKISH_HELP)
 
     def explain(self, word: str, sentence: str) -> WordExplanation:
         content = f"Word: {word}\nSentence: {sentence or word}"
