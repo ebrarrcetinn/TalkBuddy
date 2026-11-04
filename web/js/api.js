@@ -81,13 +81,13 @@ const api = {
       mode,
       lesson,
     }),
-  help: (sessionId) => request("POST", `/api/sessions/${sessionId}/help`),
+  today: () => request("GET", "/api/sessions/today"),
   snoozeReview: () => request("POST", "/api/me/review/snooze"),
   changeEmail: (form) => request("PUT", "/api/me/email", form),
   confirmEmail: (token) => request("POST", "/api/auth/email/confirm", { token }),
   explainWord: (word, sentence) => request("POST", "/api/words/explain", { word, sentence }),
-  sendMessage: (sessionId, text, alternatives = []) =>
-    request("POST", `/api/sessions/${sessionId}/messages`, { text, alternatives }),
+  sendMessage: (sessionId, text, alternatives = [], typed = false) =>
+    request("POST", `/api/sessions/${sessionId}/messages`, { text, alternatives, typed }),
   endSession: (sessionId) => request("POST", `/api/sessions/${sessionId}/end`),
 
   vocabulary: () => request("GET", "/api/me/vocabulary"),
@@ -96,4 +96,5 @@ const api = {
   notificationsSeen: () => request("POST", "/api/me/notifications/seen"),
   saveSettings: (settings) => request("PUT", "/api/me/settings", settings),
   saveWord: (expression) => request("POST", "/api/me/vocabulary", { expression }),
+  deleteWord: (id) => request("DELETE", `/api/me/vocabulary/${id}`),
 };
