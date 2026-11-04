@@ -387,7 +387,9 @@ const talk = (() => {
         lastReply = [...today.messages].reverse().find((m) => m.role === "assistant")?.text ?? "";
         if (open.topic !== topic || open.lesson !== lesson) el.topic.textContent = "Bugünkü sohbet";
         startTimer(minutes ?? (mode === "monthly" ? 15 : null));
-        return listen();
+        // Partnerin son sorusu cevapsız kaldıysa onu yeniden sorar; cevap verdikçe sohbet ilerler.
+        const unanswered = today.messages.at(-1)?.role === "assistant";
+        return unanswered ? speakReply(lastReply) : listen();
       }
       const reply = await api.startSession(topic, minutes, mode, lesson);
       startTimer(minutes ?? (mode === "monthly" ? 15 : null));
