@@ -71,7 +71,7 @@ def test_full_session_flow(tmp_path):
         coach_json(
             "Just a quick tip: 'I went'. Can you repeat that?",
             CURRENT_LEVEL="B1",
-            VOCAB_BOX_UPDATE=["went"],
+            VOCAB_BOX_UPDATE=[{"expression": "went", "turkish_meaning": "gitti"}],
             ERROR_TRACKING={"latest_error": "I go", "corrected_version": "I went"},
             SESSION_STATE={"phase": "PRACTICE", "awaiting_repetition": True},
             EXPRESSION="happy",
@@ -112,6 +112,30 @@ def test_full_session_flow(tmp_path):
     assert after.status_code == 404
 
 
+def test_today_chat_resumes_the_open_session(tmp_path):
+    client = make_client(
+        tmp_path,
+        coach_json("Hi! Where are you from?"),
+        coach_json("Nice! Bye!", SESSION_STATE={"phase": "SESSION_END"}),
+    )
+    onboard(client)
+    assert client.get("/api/sessions/today").json() == {"open_session": None, "messages": []}
+
+    session_id = client.post("/api/sessions").json()["session_id"]
+    today = client.get("/api/sessions/today").json()
+    assert today["open_session"]["id"] == session_id
+    assert today["messages"] == [{"role": "assistant", "text": "Hi! Where are you from?"}]
+
+    client.post(f"/api/sessions/{session_id}/end")
+    after = client.get("/api/sessions/today").json()
+    assert after["open_session"] is None
+    assert after["messages"][-1] == {"role": "assistant", "text": "Nice! Bye!"}
+
+    client.post("/api/auth/logout")
+    onboard(client, email="baska@example.com")
+    assert client.get("/api/sessions/today").json()["messages"] == []
+
+
 def test_users_cannot_reach_each_others_sessions(tmp_path):
     client = make_client(tmp_path, coach_json("Hello!"))
     onboard(client)
@@ -123,6 +147,31 @@ def test_users_cannot_reach_each_others_sessions(tmp_path):
     response = client.post(f"/api/sessions/{session_id}/messages", json={"text": "hi"})
     assert response.status_code == 404
     assert client.get("/api/me/vocabulary").json() == []
+
+
+def test_words_and_patterns_are_listed_apart_and_removable(tmp_path):
+    meanings = [
+        '{"turkish_meaning": "... bağlı", "example": "It depends on the weather."}',
+        '{"turkish_meaning": "okul", "example": "I go to school."}',
+    ]
+    client = make_client(tmp_path, *meanings)
+    onboard(client)
+    client.post("/api/me/vocabulary", json={"expression": "school"})
+    client.post("/api/me/vocabulary", json={"expression": "It depends on ..."})
+    pattern, word = client.get("/api/me/vocabulary").json()
+    assert (pattern["kind"], word["kind"]) == ("pattern", "word")
+    assert (pattern["turkish_meaning"], word["turkish_meaning"]) == ("... bağlı", "okul")
+
+    client.post("/api/auth/logout")
+    onboard(client, email="baska@example.com")
+    assert client.delete(f"/api/me/vocabulary/{word['id']}").status_code == 404
+
+    client.post("/api/auth/logout")
+    client.post("/api/auth/login", json={"email": FORM["email"], "password": FORM["password"]})
+    assert client.delete(f"/api/me/vocabulary/{word['id']}").status_code == 204
+    assert [w["expression"] for w in client.get("/api/me/vocabulary").json()] == [
+        "It depends on ..."
+    ]
 
 
 def test_assessment_endpoints(tmp_path):
@@ -197,7 +246,10 @@ def test_change_password(tmp_path):
 def test_delete_history_keeps_words(tmp_path):
     client = make_client(
         tmp_path,
-        coach_json("Hi! Let's learn 'journey'.", VOCAB_BOX_UPDATE=["journey"]),
+        coach_json(
+            "Hi! Let's learn 'journey'.",
+            VOCAB_BOX_UPDATE=[{"expression": "journey", "turkish_meaning": "yolculuk"}],
+        ),
     )
     onboard(client)
     session_id = client.post("/api/sessions").json()["session_id"]
@@ -301,9 +353,11 @@ def test_onboarding_steps_and_first_suggestion(tmp_path):
     started = client.post("/api/sessions", json={"lesson": "starter-1", "minutes": 5})
     session_id = started.json()["session_id"]
 
-    helped = client.post(f"/api/sessions/{session_id}/help")
-    assert helped.status_code == 200
-    assert "Nasılsın" in helped.json()["spoken_text"]
+    # Türkçe soru düğmesiz, normal bir mesaj olarak gider.
+    turkish = client.post(
+        f"/api/sessions/{session_id}/messages", json={"text": "Bunu nasıl söylerim?"}
+    )
+    assert "Nasılsın" in turkish.json()["spoken_text"]
 
 
 def test_progress_settings_and_notifications(tmp_path):

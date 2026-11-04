@@ -145,3 +145,22 @@ def test_prompt_tells_the_partner_how_to_answer_turkish_turns():
     assert "### SPEAKING TURKISH DURING THE CONVERSATION" in system
     assert "Bunu nasıl söylerim?" in system
     assert "Keep the JSON short" in system
+
+
+def test_prompt_saves_what_the_learner_does_not_know():
+    llm = FakeLLM(coach_json())
+
+    Coach(llm).start(Session(persona=Persona.FEMALE))
+
+    system = llm.calls[0][0]
+    assert "Bu kelimeyi bilmiyorum." in system
+    assert "Bu kalıbı bilmiyorum." in system
+
+
+def test_prompt_answers_the_learners_question_first():
+    llm = FakeLLM(coach_json())
+
+    Coach(llm).start(Session(persona=Persona.FEMALE))
+
+    assert "### THE LEARNER'S QUESTION COMES FIRST" in llm.calls[0][0]
+    assert "Doğru mu söyledim?" in llm.calls[0][0]
