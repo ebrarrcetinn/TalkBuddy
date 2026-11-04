@@ -8,3 +8,4 @@ __pycache__/
 
 # Oxford 5000 listesi lisanslıdır, depoya eklenmez.
 data/oxford5000.csv
+*.egg-info/
