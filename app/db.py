@@ -456,6 +456,15 @@ class Database:
                 (learner_id,),
             ).fetchone()[0]
 
+    # Belirli bir andan sonra başlayan konuşmalar (ör. bugünün sohbeti), başlangıç sırasıyla.
+    def sessions_since(self, learner_id: str, since: str) -> list[sqlite3.Row]:
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT * FROM sessions WHERE learner_id = ? AND started_at >= ?"
+                " ORDER BY started_at",
+                (learner_id, since),
+            ).fetchall()
+
     def get_session(self, session_id: str) -> sqlite3.Row | None:
         with self._connect() as conn:
             return conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
@@ -555,6 +564,14 @@ class Database:
                 "SELECT * FROM vocabulary WHERE learner_id = ? ORDER BY added_at DESC, id DESC",
                 (learner_id,),
             ).fetchall()
+
+    # Yalnızca öğrencinin kendi kelimesi silinir; silindiyse True döner.
+    def delete_word(self, learner_id: str, word_id: int) -> bool:
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM vocabulary WHERE id = ? AND learner_id = ?", (word_id, learner_id)
+            )
+        return cursor.rowcount > 0
 
     def session_words(self, session_id: str) -> list[sqlite3.Row]:
         with self._connect() as conn:
