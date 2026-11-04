@@ -355,6 +355,28 @@ logger = logging.getLogger("talkbuddy")
 MAX_AUDIO_BYTES = 2_000_000
 
 
+# Giriş yapmış kullanıcıyı çerezdeki oturum anahtarından bulur.
+def current_user(request: Request) -> sqlite3.Row:
+    token = request.cookies.get(SESSION_COOKIE)
+    user = request.app.state.accounts.user_for_token(token) if token else None
+    if user is None:
+        raise HTTPException(401, "Devam etmek için giriş yapmalısın.")
+    return user
+
+
+User = Annotated[sqlite3.Row, Depends(current_user)]
+
+
+# Kurulumu bitirmemiş kullanıcı konuşmaya başlayamaz.
+def ready_user(user: User) -> sqlite3.Row:
+    if user["onboarding_step"] != "done":
+        raise HTTPException(409, "Önce ilk kurulumu tamamla.")
+    return user
+
+
+ReadyUser = Annotated[sqlite3.Row, Depends(ready_user)]
+
+
 def create_app(
     tutor: Tutor,
     accounts: Accounts,
@@ -362,6 +384,7 @@ def create_app(
     transcriber: Transcriber | None = None,
 ) -> FastAPI:
     app = FastAPI(title="TalkBuddy")
+    app.state.accounts = accounts
 
     # Hesap hataları Türkçe mesaj ve alan bazlı hatalarla döner.
     @app.exception_handler(AccountError)
@@ -378,24 +401,6 @@ def create_app(
             secure=cookie_secure,
         )
 
-    # Giriş yapmış kullanıcıyı çerezdeki oturum anahtarından bulur.
-    def current_user(request: Request):
-        token = request.cookies.get(SESSION_COOKIE)
-        user = accounts.user_for_token(token) if token else None
-        if user is None:
-            raise HTTPException(401, "Devam etmek için giriş yapmalısın.")
-        return user
-
-    User = Annotated[sqlite3.Row, Depends(current_user)]
-
-    # Kurulumu bitirmemiş kullanıcı konuşmaya başlayamaz.
-    def ready_user(user: User):
-        if user["onboarding_step"] != "done":
-            raise HTTPException(409, "Önce ilk kurulumu tamamla.")
-        return user
-
-    ReadyUser = Annotated[sqlite3.Row, Depends(ready_user)]
-
     def plan_out(progress) -> PlanOut | None:
         if progress is None:
             return None
@@ -403,6 +408,8 @@ def create_app(
 
     def profile(user) -> Profile:
         learner = tutor.learner(user["id"])
+        if learner is None:
+            raise HTTPException(404, "Öğrenci kaydı bulunamadı.")
         review_due = accounts.review_due(user["id"])
         report = tutor.progress_report(user["id"])
         photo = accounts.photo(user["id"])
@@ -689,7 +696,9 @@ def create_app(
     @app.get("/api/sessions/today")
     def today_chat(user: ReadyUser) -> TodayOut:
         chat = tutor.today(user["id"])
-        return TodayOut(open_session=chat.open_session, messages=chat.messages)
+        return TodayOut.model_validate(
+            {"open_session": chat.open_session, "messages": chat.messages}
+        )
 
     @app.post("/api/sessions/{session_id}/messages")
     def send_message(session_id: str, body: MessageRequest, user: ReadyUser) -> TurnReply:
@@ -705,6 +714,8 @@ def create_app(
     def end_session(session_id: str, user: ReadyUser) -> EndReply:
         own_session(session_id, user)
         result = run(lambda: tutor.end(session_id))
+        if result.report is None:
+            raise HTTPException(500, "Konuşma özeti hazırlanamadı.")
         return EndReply(**TurnReply.from_result(result).model_dump(), report=result.report)
 
     # Konuşma kaydı ham ses olarak gelir, yazıya çevrilir ve bırakılır; hiçbir yere kaydedilmez.
