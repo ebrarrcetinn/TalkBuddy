@@ -20,3 +20,17 @@ def status_for(review_count: int) -> str:
 def next_review(review_count: int, today: date) -> date:
     interval = INTERVALS[min(review_count, len(INTERVALS) - 1)]
     return today + timedelta(days=interval)
+
+
+# Boşluğu ("...") olan ifadeler kalıptır ("I'm looking forward to ..."); diğerleri kelimedir.
+def kind(expression: str) -> str:
+    return "pattern" if "..." in expression or "…" in expression else "word"
+
+
+# Kelime kutusuna yalnızca kelime ve kalıp girer. Nokta, soru ya da ünlem işaretiyle biten ve
+# "..." boşluğu olmayan çok kelimeli bir ifade tam cümle sayılır ("I'm from Turkey.").
+def is_sentence(expression: str) -> bool:
+    text = expression.strip()
+    if kind(text) == "pattern":
+        return False
+    return len(text.split()) > 1 and text[-1:] in ".?!"
