@@ -1,18 +1,33 @@
 # Öğrenme akışı: koçu çalıştırır, cevabı hafızaya işler ve bir sonraki turun bağlamını hazırlar.
 import json
 import random
+import re
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, time
 
 from app import path, progress, vocab
-from app.coach import Coach, CoachOutputError, Session, WordExplanation, parse_response
+from app.coach import (
+    SESSION_END,
+    Coach,
+    CoachOutputError,
+    Session,
+    WordExplanation,
+    parse_response,
+)
 from app.db import Database
 from app.level import LevelState, LexicalProfile, update
 from app.plan import LearningPlan, PlanProgress
 from app.report import SessionReport, build_report
 from app.schemas import CoachResponse, Persona
+
+
+# Bir metindeki son soru cümlesi ("Great! What food do you like?" → "What food do you like?").
+def last_question(text: str) -> str | None:
+    questions = re.findall(r"[^.!?]*\?", text)
+    return questions[-1].strip() if questions else None
+
 
 # Klavyeyle yazılan mesajlara eklenen işaret; partner bunu ses dökümünden ayırır.
 TYPED_MARK = "(Typed)"
@@ -159,12 +174,36 @@ class Tutor:
         result.report = build_report(self._db, session_id)
         return result
 
-    def today(self, learner_id: str) -> TodayChat:
-        now = self._clock()
+    # Türkiye saatine göre bugün başlayan konuşmalar; ertesi gün liste boşalır, sohbet temiz başlar.
+    def _today_sessions(self, learner_id: str):
         local = progress.LOCAL_TIME
-        midnight = datetime.combine(now.astimezone(local).date(), time(), local)
+        midnight = datetime.combine(self._clock().astimezone(local).date(), time(), local)
+        return self._db.sessions_since(learner_id, midnight.astimezone(UTC).isoformat())
+
+    # Bugünkü önceki konuşmalarda partnerin sorup cevap alamadığı sorular. Konuşma sonu özetindeki
+    # sorular sayılmaz.
+    def _unanswered_today(self, learner_id: str, current: str | None = None) -> list[str]:
+        questions = []
+        for row in self._today_sessions(learner_id):
+            if row["id"] == current:
+                continue
+            messages = self._db.get_messages(row["id"])
+            for index, message in enumerate(messages):
+                if message["role"] != "assistant" or index == 0:
+                    continue
+                if messages[index - 1]["content"] == SESSION_END:
+                    continue
+                following = messages[index + 1] if index + 1 < len(messages) else None
+                if following and not following["content"].startswith("["):
+                    continue
+                question = last_question(shown_text(message) or "")
+                if question:
+                    questions.append(question)
+        return questions
+
+    def today(self, learner_id: str) -> TodayChat:
         chat = TodayChat()
-        for row in self._db.sessions_since(learner_id, midnight.astimezone(UTC).isoformat()):
+        for row in self._today_sessions(learner_id):
             for message in self._db.get_messages(row["id"]):
                 text = shown_text(message)
                 if text:
@@ -352,6 +391,19 @@ class Tutor:
         due = self._db.due_words(learner_id, self._clock().date().isoformat())
         if due:
             lines.append(f"Vocabulary due for review: {', '.join(due)}")
+
+        current = session["id"] if in_progress else None
+        earlier_today = [row for row in self._today_sessions(learner_id) if row["id"] != current]
+        if earlier_today and mode != "monthly":
+            lines.append(
+                "Same-day continuation: the learner already talked with you earlier today. "
+                "Do not greet again; follow the SAME-DAY CONTINUATION rules."
+            )
+            unanswered = self._unanswered_today(learner_id, current)
+            if unanswered:
+                lines.append(
+                    "Questions the learner left unanswered earlier today: " + " | ".join(unanswered)
+                )
 
         if mode == "monthly":
             lines.append(

@@ -314,3 +314,30 @@ def test_typed_messages_are_marked_and_shown_without_the_mark(tmp_path):
 
     assert llm.calls[1][1][-1]["content"] == "I live in Ankara\n(Typed)"
     assert tutor.today(LEARNER).messages[1] == {"role": "user", "text": "I live in Ankara"}
+
+
+# Gün içinde cevapsız kalan sorular sonraki konuşmada yeniden sorulur; ertesi gün temiz başlar.
+def test_unanswered_questions_carry_over_within_the_day_only(tmp_path):
+    clock = FakeClock(datetime(2026, 11, 1, 9, 0, tzinfo=UTC))
+    llm = FakeLLM(
+        coach_json("Hi Ebrar! Do you like cooking?"),
+        coach_json("Great! What food do you like to cook?"),
+        coach_json("Well done! Shall we talk again later?", SESSION_STATE={"phase": "SESSION_END"}),
+        coach_json("What food do you like to cook?"),
+        coach_json("Good morning, Ebrar!"),
+    )
+    tutor = make_tutor(tmp_path, llm, clock)
+    first = tutor.start(LEARNER, Persona.FEMALE)
+    tutor.reply(first.session_id, "Yes, I like it.")
+    tutor.end(first.session_id)
+
+    clock.advance(hours=2)
+    tutor.start(LEARNER, Persona.FEMALE)
+    later = llm.calls[3][0]
+    assert "Same-day continuation: the learner" in later
+    unanswered = later.split("left unanswered earlier today: ")[1].splitlines()[0]
+    assert unanswered == "What food do you like to cook?"
+
+    clock.advance(days=1)
+    tutor.start(LEARNER, Persona.FEMALE)
+    assert "Same-day continuation: the learner" not in llm.calls[4][0]
