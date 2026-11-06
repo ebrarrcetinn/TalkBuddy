@@ -41,6 +41,36 @@ def test_session_survives_restart(tmp_path):
     assert [m["role"] for m in llm.calls[0][1]] == ["user", "assistant", "user"]
 
 
+def test_add_sentence_saves_the_sentence_partner_taught(tmp_path):
+    taught = 'Şöyle diyebilirsin: "Istanbul is beautiful, but it\'s very crowded." Do you agree?'
+    tutor = make_tutor(tmp_path, FakeLLM(coach_json(taught), coach_json("Sure!")))
+    session_id = tutor.start(LEARNER, Persona.FEMALE).session_id
+
+    result = tutor.reply(session_id, "Bu cümleyi ekle", typed=True)
+
+    assert result.new_words == ["Istanbul is beautiful, but it's very crowded."]
+
+
+def test_add_sentence_keeps_the_partners_own_choice(tmp_path):
+    chosen = coach_json("Okay!", VOCAB_BOX_UPDATE=["I'm looking forward to it."])
+    tutor = make_tutor(tmp_path, FakeLLM(coach_json("I am tired. Are you?"), chosen))
+    session_id = tutor.start(LEARNER, Persona.FEMALE).session_id
+
+    result = tutor.reply(session_id, "Cümleyi kaydet")
+
+    assert result.new_words == ["I'm looking forward to it."]
+
+
+def test_add_sentence_without_question_mark_falls_back_to_statement(tmp_path):
+    llm = FakeLLM(coach_json("I went home early. Did you?"), coach_json("Ok"))
+    tutor = make_tutor(tmp_path, llm)
+    session_id = tutor.start(LEARNER, Persona.FEMALE).session_id
+
+    result = tutor.reply(session_id, "add this sentence")
+
+    assert result.new_words == ["I went home early."]
+
+
 def test_ended_session_cannot_continue(tmp_path):
     tutor = make_tutor(tmp_path, FakeLLM(coach_json(), coach_json("Bye")))
     session_id = tutor.start(LEARNER, Persona.MALE).session_id

@@ -25,6 +25,7 @@ keeps the words and sentence patterns you didn't know. The interface is in Turki
 
 - Tap any English word in the partner's messages to see its Turkish meaning and save it.
 - Saying "Bu kelimeyi bilmiyorum" or "Bu kalıbı bilmiyorum" saves it too.
+- Saying or typing "Bu cümleyi ekle" saves the partner's last English sentence.
 - Words go to **Kelimelerim**. Sentence patterns ("I'm looking forward to ...") and sentences you
   didn't know how to say go to **Cümlelerim**. Any entry can be removed.
 - Saved items come back in later conversations with spaced repetition (1, 3, 7, 14, 30 days).
@@ -105,6 +106,7 @@ kısaca düzeltiyor ve bilmediğin kelimeleri ve kalıpları saklıyor. Arayüz 
 
 - Partnerin mesajlarındaki İngilizce bir kelimeye dokununca Türkçesi açılıyor ve kaydedebiliyorsun.
 - "Bu kelimeyi bilmiyorum" ya da "Bu kalıbı bilmiyorum" demek de onu kaydediyor.
+- "Bu cümleyi ekle" deyince ya da yazınca partnerin son İngilizce cümlesi kaydediliyor.
 - Kelimeler **Kelimelerim**'e; cümle kalıpları ("I'm looking forward to ...") ve nasıl
   söyleyeceğini bilmediğin cümleler **Cümlelerim**'e gidiyor. İstemediğin kaydı listeden
   çıkarabiliyorsun.

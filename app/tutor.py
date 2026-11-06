@@ -20,7 +20,7 @@ from app.db import Database
 from app.level import LevelState, LexicalProfile, update
 from app.plan import LearningPlan, PlanProgress
 from app.report import SessionReport, build_report
-from app.schemas import CoachResponse, Persona
+from app.schemas import CoachResponse, Persona, VocabEntry
 
 
 # Bir metindeki son soru cümlesi ("Great! What food do you like?" → "What food do you like?").
@@ -31,6 +31,28 @@ def last_question(text: str) -> str | None:
 
 # Klavyeyle yazılan mesajlara eklenen işaret; partner bunu ses dökümünden ayırır.
 TYPED_MARK = "(Typed)"
+
+# "Bu cümleyi ekle", "cümleyi kaydet", "add this sentence" gibi istekler.
+SAVE_SENTENCE = re.compile(
+    r"cümle(yi|leri)?\s+(de\s+)?(ekle|kaydet)|(add|save)\s+(this|that|the)\s+sentence",
+    re.IGNORECASE,
+)
+TURKISH_LETTERS = re.compile(r"[çğışöüÇĞİŞÖÜ]")
+
+
+# Partnerin mesajından kaydedilecek İngilizce cümle: tırnak içinde verdiği cümle öncelikli,
+# yoksa soru olmayan son İngilizce cümle, o da yoksa son İngilizce cümle.
+def sentence_to_save(text: str) -> str | None:
+    quoted = [q.strip() for q in re.findall(r"[“\"]([^”\"]+)[”\"]", text)]
+    english = [q for q in quoted if len(q.split()) > 1 and not TURKISH_LETTERS.search(q)]
+    if not english:
+        sentences = [s.strip() for s in re.findall(r"[^.!?]+[.!?]", text)]
+        english = [s for s in sentences if len(s.split()) > 1 and not TURKISH_LETTERS.search(s)]
+        english = [s for s in english if not s.endswith("?")] or english
+    if not english:
+        return None
+    sentence = english[-1]
+    return sentence if sentence[-1] in ".?!" else sentence + "."
 
 
 # Kayıtlı bir mesajın ekranda görünen hali. Uygulamanın iç komutları ("[Session started…]")
@@ -152,6 +174,9 @@ class Tutor:
         typed: bool = False,
     ) -> TurnResult:
         row, session = self._load(session_id)
+        previous = next(
+            (shown_text(m) for m in reversed(session.history) if m["role"] == "assistant"), None
+        )
         others = [item.strip() for item in alternatives or [] if item.strip() and item != text]
         message = text
         if typed:
@@ -160,7 +185,18 @@ class Tutor:
             message += f"\n(Other possible transcriptions: {' | '.join(others)})"
         response = self._coach.reply(session, message)
         self._db.add_messages(session_id, session.history[-2:])
+        if SAVE_SENTENCE.search(text):
+            self._ensure_sentence(response, previous)
         return self._record(session_id, row["learner_id"], response, user_text=text)
+
+    # "Cümleyi ekle" denince partner kaydetmeyi unutsa da önceki mesajındaki cümle eklenir;
+    # Türkçe anlamı Cümlelerim açılırken tamamlanır.
+    def _ensure_sentence(self, response: CoachResponse, previous: str | None) -> None:
+        if any(vocab.kind(e.expression) == "sentence" for e in response.vocab_box_update):
+            return
+        sentence = sentence_to_save(previous or "")
+        if sentence:
+            response.vocab_box_update.append(VocabEntry(expression=sentence))
 
     def end(self, session_id: str) -> TurnResult:
         row, session = self._load(session_id)
