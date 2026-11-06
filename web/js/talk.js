@@ -121,14 +121,28 @@ const talk = (() => {
       item.textContent = text;
     }
     el.thread.append(item);
-    if (newWords.length) {
-      const saved = document.createElement("li");
-      saved.className = "thread-saved";
-      saved.textContent = `Kelimelerine eklendi: ${newWords.join(", ")}`;
-      el.thread.append(saved);
-    }
+    const sentences = newWords.filter(isSentence);
+    const words = newWords.filter((expression) => !isSentence(expression));
+    addSaved("Kelimelerine eklendi", words);
+    addSaved("Cümlelerine eklendi", sentences);
     scrollToEnd();
     return item;
+  }
+
+  // Sunucudaki vocab.kind ile aynı ayrım: "..." içeren kalıplar ve noktalamayla biten
+  // çok kelimeli ifadeler Cümlelerim'e gider.
+  function isSentence(expression) {
+    const text = expression.trim();
+    if (text.includes("...") || text.includes("…")) return true;
+    return text.split(/\s+/).length > 1 && /[.?!]$/.test(text);
+  }
+
+  function addSaved(label, items) {
+    if (!items.length) return;
+    const saved = document.createElement("li");
+    saved.className = "thread-saved";
+    saved.textContent = `${label}: ${items.join(", ")}`;
+    el.thread.append(saved);
   }
 
   // Öğrencinin sözü yazıya çevrilirken ve partner düşünürken sohbette geçici balon görünür.
